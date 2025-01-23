@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .Title }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        body {
+            height: 100%;
+            background-color: white;
+        }
+        #content {
+            min-height: calc(100vh - 50px);
+            margin: 0 5%;
+        }
+        p .header {
+            font-size: 20px;
+            font-weight: normal;
+        }
+        header a{
+            text-decoration: none;
+            color: black;
+        }
+        main {
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+        }
+        footer {
+            font-family: 'VT323', monospace;
+            height: 30px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <p>
+            <a href="{{.Site.BaseURL}}">{{ .Site.Title }}</a>
+        </p>
+    </header>
+    <div id="content">
+        <main>
+            {{ block "main" . }}{{ end }}
+        </main>
+    </div>
+    <footer>
+        <p>© {{ now.Year }} miomiomi.org</p>
+    </footer>
+</body>
+</html>
