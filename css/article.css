@@ -54,3 +54,8 @@ li {
 #memo {
     font-size: 12px;
 }
+
+iframe {
+    width: 100%; /* Vimeo動画をウィンドウの幅に合わせる */
+    height: auto; /* 高さを自動調整 */
+}
