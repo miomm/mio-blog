@@ -1,0 +1,174 @@
+/* 基本スタイル */
+body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: #F1F1F1;
+}
+p {
+    color: #5A5A5A;
+    font-size: 13px;
+}
+/* ヘッダー */
+header {
+    font-size: 16px;
+    font-weight: normal;
+    margin: 16px 10px;
+    text-align: left;
+}
+header a {
+    text-decoration: none;
+    color: gray;
+}
+
+/* 横並びコンテナ */
+.container {
+    display: flex;
+    min-height: calc(100vh - 50px);
+    margin: 0 2%;
+}
+
+/* 左カラム */
+.panel.left {
+    width: 200px;
+    border-right: 1px solid #ccc;
+    padding: 0.5rem;
+}
+
+/* 右カラム */
+.panel.right,
+#ajax-content {
+    flex: 1;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+/* フッター */
+footer {
+    font-family: 'VT323', monospace;
+    height: 30px;
+    text-align: center;
+    padding-top: 8px;
+}
+
+/* ナビリンク */
+nav a {
+    display: block;
+    padding: 4px 0;
+    color: #5A5A5A;
+    text-decoration: none;
+}
+nav a:hover {
+    letter-spacing: 0.1em;
+}
+/* アクティブなナビの装飾 */
+nav a.active {
+    font-weight: bold;
+  }
+
+/* リスト */
+ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    font-size: 14px;
+}
+li {
+    padding: 4px 0;
+    color: #5A5A5A;
+}
+
+nav a.external::after {
+    content: "↗";               /* Unicode の外部リンクアイコン */
+    margin-left: 0.25rem;       /* テキストとの間隔 */
+    font-size: 0.7em;           /* アイコンサイズ調整 */
+    vertical-align: text-bottom;/* ベースライン揃え */
+  }
+
+/* セクションタイトル */
+    .section-title {
+    font-size: 1rem;
+    margin: 0.5rem 0 0.5rem;
+    font-weight: bold;
+    color: #5A5A5A;
+  }
+  
+/* サブタイトル／小見出し */
+    .section-subtitle {
+    font-size: 0.8rem;
+    color: #5A5A5A;
+    margin-bottom: 1rem;
+  }
+
+/* 右カラムのリスト */
+.panel.right ul li a {
+    padding: 4px 0; 
+    color: #5A5A5A;
+    text-decoration: none;
+  }
+  .panel.right ul li a:hover {
+    letter-spacing: 0.1em;
+  }
+  
+  /* 外部リンクアイコン */
+  .panel.right ul li a[target="_blank"]::after {
+    content: "↗";
+    margin-left: 0.25rem;
+    font-size: 0.7em;
+    vertical-align: text-bottom;
+  }
+
+  /* ----- memoページだけ適用 ----- */
+.memo-list .memo-entry {
+    display: grid;
+    grid-template-columns: 13rem 60%;
+    column-gap: 1rem;                  /* カラム間のスペース */
+    align-items: start;                /* 上揃え */
+  }
+
+  .memo-entry {
+    margin-bottom: 3rem;
+  }
+  
+  /* 左カラム内（ヘッダー）を縦並び */
+  .memo-entry header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  /* 日付とタイトルの見た目（必要に応じて微調整） */
+  .memo-entry time {
+    font-size: 0.8rem;
+    color: #5A5A5A;;
+  }
+  .memo-title {
+    font-size: 1rem;
+    font-weight: normal;
+    margin: 0;
+    color: #5A5A5A;
+  }
+  
+  /* 右カラム（本文）は既存の .memo-body をそのまま使う */
+  .memo-body {
+    line-height: 1.6;
+    font-size: 0.9rem;
+    color: #5A5A5A;;
+  }
+  
+  /* Aboutの名前 */
+  .aboutname {
+    font-size: 14px;
+    color: #5A5A5A;
+    margin-bottom: 1rem;
+  }
+
+/* Aboutと活動の間の間隔 */
+  .aboutname + ul {
+    margin-bottom: 4rem;
+  }
+
+/* about.html の本文内リンクにだけ下線をつける */
+.panel.right .about-page a {
+    text-decoration: underline;
+  }
