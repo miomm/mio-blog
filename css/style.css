@@ -100,7 +100,7 @@ body {
   
   /* サブタイトル／小見出し */
   .section-subtitle {
-    font-size: 1rem;         /* article.css を採用 */
+    font-size: 0.8rem;         /* article.css を採用 */
     color: #666;
     margin-bottom: 1rem;
   }
