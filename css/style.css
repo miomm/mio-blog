@@ -357,8 +357,7 @@ body {
 
 /* 3カラム目スタイル */
 .panel.third {
-  width: 250px;
-  /* border-left: 1px solid #ccc; */
+  width: 270px;
   padding: 1rem;
   overflow-y: auto;
   display: none; /* デフォルト非表示 */

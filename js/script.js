@@ -19,30 +19,32 @@ document.addEventListener('DOMContentLoaded', () => {
         // 本文＋ヒントUIをまとめて挿入
             thirdContent.innerHTML = `
             <p class="third-text">
-                このサイトのタイトルとして表示している "yes, I'm dreaming." には意味、由来があります。それは一体なんでしょう？
+                このサイトのタイトルとして表示している "yes, I'm dreaming." には意味、由来があります。それは一体なんでしょう？<br>
+                There's a meaning and a story behind the title, "yes, I'm dreaming." . What is it?
             </p>
 
             <div class="hints">
                 <button type="button" class="hint-toggle" data-target="hint1" aria-expanded="false">hint01</button>
-                <div id="hint1" class="hint-body" hidden>私のことを深く知っている必要はない</div>
+                <div id="hint1" class="hint-body" hidden>私のことを深く知っている必要はない<br>You don’t need to know me well.
+</div>
 
                 <button type="button" class="hint-toggle" data-target="hint2" aria-expanded="false">hint02</button>
-                <div id="hint2" class="hint-body" hidden>インターネットが関係している</div>
+                <div id="hint2" class="hint-body" hidden>インターネットが関係している<br>It’s related to the internet.</div>
 
                 <button type="button" class="hint-toggle" data-target="hint3" aria-expanded="false">hint03</button>
-                <div id="hint3" class="hint-body" hidden>このサイトの中を探す必要はない</div>
+                <div id="hint3" class="hint-body" hidden>このサイトの中を探す必要はない<br>No need to search within this site.</div>
 
                 <button type="button" class="hint-toggle" data-target="hint4" aria-expanded="false">hint04</button>
-                <div id="hint4" class="hint-body" hidden>対になっている</div>
+                <div id="hint4" class="hint-body" hidden>対になっている<br>It’s paired with something.</div>
 
                 <button type="button" class="hint-toggle" data-target="hint5" aria-expanded="false">hint05</button>
-                <div id="hint5" class="hint-body" hidden>何かに対する応答である</div>
+                <div id="hint5" class="hint-body" hidden>何かに対する応答である<br>It’s a response to something.</div>
 
                 <button type="button" class="hint-toggle" data-target="hint6" aria-expanded="false">hint06</button>
-                <div id="hint6" class="hint-body" hidden>ドメインが関係している</div>
+                <div id="hint6" class="hint-body" hidden>ドメインが関係している<br>The domain is involved.</div>
 
                 <button type="button" class="hint-toggle" data-target="hint7" aria-expanded="false">hint07</button>
-                <div id="hint7" class="hint-body" hidden>私の名前はmioである</div>
+                <div id="hint7" class="hint-body" hidden>私の名前はmioである<br>My name is mio.</div>
             </div>`;
 
 // クリックで対象のヒント本文をトグル
