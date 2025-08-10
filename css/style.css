@@ -231,6 +231,21 @@ body {
     }
     .memo-entry header { margin-bottom: 0.5rem; }
   }
+  @media (max-width: 768px) {
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .container {
+      flex: 1;
+    }
+    footer {
+      margin-top: auto;
+      margin-bottom: 50px; 
+    }
+  }
   
   /* 活動リスト：年と本文で2カラム */
 .activities {
@@ -326,4 +341,71 @@ body {
       color: #fff;
       font-weight: normal;
     }
+  }
+
+/* why?リンクの位置調整 */
+#why-link {
+  display: inline-block;
+  margin-top: 90px;
+  color: gray;
+  text-decoration: none;
+  font-size: 12px;
+}
+#why-link:hover {
+  letter-spacing: 0.1em;
+}
+
+/* 3カラム目スタイル */
+.panel.third {
+  width: 250px;
+  /* border-left: 1px solid #ccc; */
+  padding: 1rem;
+  overflow-y: auto;
+  display: none; /* デフォルト非表示 */
+}
+.panel.third.active {
+  display: block;
+}
+
+/* 3カラムレイアウト時の親コンテナ調整 */
+.container.three-columns {
+  display: flex;
+}
+
+/* third panel が開いている間だけ why? を中央線で消す */
+.container.three-columns #why-link {
+    text-decoration: line-through;
+    text-decoration-thickness: 2px; /* 線の太さ調整（お好みで） */
+    text-decoration-color: #5A5A5A; /* 線の色を文字と合わせる */
+  }
+
+  /* third panel のヒントUI */
+.hints {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+  
+  .hint-toggle {
+display: inline-block;
+  color: #5A5A5A;
+  text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-align: left;
+  }
+  .hint-toggle:hover {
+    letter-spacing: 0.05em;
+  }
+  
+  /* ヒント本文は他の本文と同じ雰囲気 */
+  .hint-body {
+    margin: 0.25rem 0 0 0.5rem;  /* ボタンの下に少し下げてインデント */
+    line-height: 1.6;
+    font-size: 0.8rem;
+    color: #5A5A5A;
   }
