@@ -345,8 +345,8 @@ body {
 
 /* why?リンクの位置調整 */
 #why-link {
-  display: inline-block;
-  margin-top: 90px;
+  display: block;
+  margin-top: 200px;
   color: gray;
   text-decoration: none;
   font-size: 12px;
@@ -360,7 +360,7 @@ body {
   width: 270px;
   padding: 1rem;
   overflow-y: auto;
-  display: none; /* デフォルト非表示 */
+  display: none;
 }
 .panel.third.active {
   display: block;
@@ -374,8 +374,8 @@ body {
 /* third panel が開いている間だけ why? を中央線で消す */
 .container.three-columns #why-link {
     text-decoration: line-through;
-    text-decoration-thickness: 2px; /* 線の太さ調整（お好みで） */
-    text-decoration-color: #5A5A5A; /* 線の色を文字と合わせる */
+    text-decoration-thickness: 2px;
+    text-decoration-color: #5A5A5A;
   }
 
   /* third panel のヒントUI */
@@ -387,7 +387,7 @@ body {
   }
   
   .hint-toggle {
-display: inline-block;
+  display: inline-block;
   color: #5A5A5A;
   text-decoration: none;
   background: none;
@@ -407,4 +407,13 @@ display: inline-block;
     line-height: 1.6;
     font-size: 0.8rem;
     color: #5A5A5A;
+  }
+
+.home-image {
+    display: block;
+    margin-top: 80px;
+  }
+.about-image {
+    display: block;
+    margin-bottom: 50px;
   }
