@@ -1,34 +1,131 @@
+<!-- Single-file SPA: index.html -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-	<meta name="generator" content="Hugo 0.141.0"><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>miomiomiorg</title>
-    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>miomiomiorg</title>
+  <!-- ２カラム用のCSS（相対パスに修正） -->
+  <link rel="stylesheet" href="./css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
 </head>
 <body>
-    <header>
-        <a href="index.html">yes, I'm dreaming.</a>
-    </header>
-    <div id="content">
-        <main>
-            <p><a href="https://miomatsui.notion.site/mio-matsui-1af0d40cac124466ad394591204f962b">works</a></p>
-            <p><a href="https://rittorbase.jp/event/1226/" target="_blank" rel="noopener noreferrer">solo exhibition</a>(end)</p>
-            <p><a href="bkm.html">bookmark</a></p>
-            <p><a href="https://miomiomi.hatenablog.com/">blog</a></p>
+  <header>
+    <a href="./index.html">yes, I'm dreaming.</a>
+  </header>
 
-            <!-- <hr>
-            <p><small>last edited 2025/2/10</small></p>
-            <ul>
-                <li><a href="notes/waterwalk.html">《water walk》について</a></li>
-            </ul> -->
-        </main>
-    </div>
-    
-    <footer>
-        <p>© 2025 miomiomi.org</p>
-    </footer>
+  <!-- 全体を横並びにするコンテナ -->
+  <div class="container">
+    <!-- 左メニュー -->
+    <nav class="panel left">
+      <ul>
+        <li><a href="https://miomatsui.notion.site/mio-matsui-1af0d40cac124466ad394591204f962b" target="_blank" rel="noopener noreferrer" class="external">works（notion）</a></li>
+        <li><a href="https://rittorbase.jp/event/1226/" target="_blank" rel="noopener noreferrer" class="external">solo exhibition(end)</a></li>
+        <!-- SPA内リンクはハッシュを使う -->
+        <li><a href="#/about" class="ajax-link">about</a></li>
+        <li><a href="#/bookmark" class="ajax-link">bookmark</a></li>
+        <li><a href="#/memo" class="ajax-link">memo</a></li>
+      </ul>
+    </nav>
+
+    <!-- 右コンテンツ表示エリア -->
+    <section class="panel right" id="ajax-content">
+      <p>miomiomi.org</p>
+    </section>
+  </div>
+
+  <footer>
+    <p>© 2025 miomiomi.org</p>
+  </footer>
+
+  <!-- ---- Templates (コンテンツはここに集約) ---- -->
+  <template id="tpl-home">
+    <main>
+      <p>miomiomi.org</p>
+    </main>
+  </template>
+
+  <template id="tpl-about">
+    <main class="about-page">
+      <h2 class="section-title">About</h2>
+      <p class="aboutname">松井 美緒 mio matsui, 2000年生まれ。<br>身体と場所の関係にある感覚に着目し、音をきっかけに想像力を喚起するための作品を制作している。</p>
+      <ul>
+        <li>
+            2019 - 2023 <a href="https://www.sfc.keio.ac.jp" target="_blank" rel="noopener noreferrer">慶應義塾大学総合政策学部</a>
+            藤井進也研究会 x-Music Laboratory
+        </li>
+        <li>
+            2023 – 2025 <a href="https://www.iamas.ac.jp/" target="_blank" rel="noopener noreferrer">情報科学芸術大学院大学[IAMAS]</a>
+            メディア表現科 博士前期課程修了
+        </li>
+        <li>
+            2023.9 – 2023.12 
+            <a href="https://kunstuni-linz.at/" target="_blank" rel="noopener noreferrer">
+                University of Arts Linz
+            </a>
+            Interface Cultures（Exchange Program）
+        </li>
+      </ul>
+      <h3 class="section-title">活動</h3>
+      <ul>
+        <li>2024 令和6年度文化庁メディア芸術クリエイター育成支援事業「国内クリエイター発表支援プログラム」採択</li>
+        <li>2024 International Computer Music Conference 2024（Seoul, Hanyang University）</li>
+        <li>2024 「大垣の民話をテーマにしたアートプロジェクト」が大垣市観光・シティプロモーション推進事業に採択</li>
+        <li>2024 「メディア表現を育むワークショップ事業」が大垣市学生提案事業に採択</li>
+        <li>2023 「New Interfaces for Musical Expression 2023」『Sacrifice Container』（Mexico, Centro de Cultura Digital）</li>
+        <li>2022 「インターカレッジ・ソニックアーツ・フェスティバル都立大学」『すれちがった化け物』（都立大学南大沢キャンパス）</li>
+        <li>2022 「先端芸術音楽創作学会 第49回研究会」口頭発表『日本の怪異・妖怪にまつわる民話の伝承手段としてのサウンドコンポジション』（都立大学南大沢キャンパス）</li>
+        <li>2022 「Open Research Forum 2022」『unreal container -生贄-』,『妖怪たちの声-異形を知覚する』（慶應義塾大学湘南藤沢キャンパス）</li>
+        <li>2021 「Synthesize:x-Music Exhibition」『unreal container』（横浜 大さん橋ホール）</li>
+      </ul>
+    </main>
+  </template>
+
+  <template id="tpl-bookmark">
+    <main>
+      <h2 class="section-title">いいなと思ったサイト</h2>
+      <p class="section-subtitle">これからは個人ブログの時代、個人ブログをはじめよう</p>
+      <ul>
+        <li><a href="https://scrapbox.io/s4nt4-cc/" target="_blank" rel="noopener noreferrer">s4nt4-cc</a></li>
+        <li><a href="https://www.homuta.xyz/" target="_blank" rel="noopener noreferrer">誉田千尋</a></li>
+        <li><a href="https://kenjimonden.com/" target="_blank" rel="noopener noreferrer">門田健嗣 kenji monden</a></li>
+        <li><a href="https://braveeeeen.vercel.app/" target="_blank" rel="noopener noreferrer">braveeeeen</a></li>
+        <li><a href="https://izakikosei.com/" target="_blank" rel="noopener noreferrer">izakikosei</a></li>
+        <li><a href="https://otasora.website/" target="_blank" rel="noopener noreferrer">otasora.website</a></li>
+        <li><a href="https://otasora.website/hakko/" target="_blank" rel="noopener noreferrer">発光！＜Hakko!＞</a></li>
+        <li><a href="https://www.idd.tamabi.ac.jp/~yamaguchiy/index.html" target="_blank" rel="noopener noreferrer">Yuiko Yamaguchi</a></li>
+        <li><a href="https://cobaltinnv.com/" target="_blank" rel="noopener noreferrer">cobaltinnv.com</a></li>
+      </ul>
+    </main>
+  </template>
+
+  <template id="tpl-memo">
+    <main>
+      <section class="memo-list">
+        <article class="memo-entry">
+          <header>
+            <time datetime="2025-08-03">2025.08.03</time>
+            <h2 class="memo-title">test</h2>
+          </header>
+          <div class="memo-body">
+            <p>兄妹、五人あって、みんなロマンスが好きだった。長男は二十九歳。法学士である。ひとに接するとき、少し尊大ぶる悪癖があるけれども、これは彼自身の弱さを庇かばう鬼の面めんであって、まことは弱く、とても優しい。弟妹たちと映画を見にいって、これは駄作だ、愚劣だと言いながら、その映画のさむらいの義理人情にまいって、まず、まっさきに泣いてしまうのは、いつも、この長兄である。それにきまっていた。映画館を出てからは、急に尊大に、むっと不気嫌になって、みちみち一言も口をきかない。生れて、いまだ一度も嘘言うそというものをついたことがないと、躊躇ちゅうちょせず公言している。それは、どうかと思われるけれど、しかし、剛直、潔白の一面は、たしかに具有していた。学校の成績は、あまりよくなかった。卒業後は、どこへも勤めず、固く一家を守っている。イプセンを研究している。このごろ人形の家をまた読み返し、重大な発見をして、頗すこぶる興奮した。ノラが、あのとき恋をしていた。お医者のランクに恋をしていたのだ。それを発見した。弟妹たちを呼び集めて、そのところを指摘し、大声叱咤しった、説明に努力したが、徒労であった。弟妹たちは、どうだか、と首をかしげて、にやにや笑っているだけで、一向に興奮の色を示さぬ。いったいに、弟妹たちは、この兄を甘く見ている。なめている風ふうがある。長女は、二十六歳。いまだ嫁がず、鉄道省に通勤している。フランス語が、かなりよくできた。脊丈せたけが、五尺三寸あった。すごく、痩やせている。弟妹たちに、馬、と呼ばれることがある。髪を短く切って、ロイド眼鏡をかけている。心が派手で、誰とでもすぐ友達になり、一生懸命に奉仕して、捨てられる。</p>
+          </div>
+        </article>
+
+        <article class="memo-entry">
+          <header>
+            <time datetime="2025-08-02">2025.08.02</time>
+            <h2 class="memo-title">新しい本を読み始めた</h2>
+          </header>
+          <div class="memo-body">
+            <p>テストの新作を購入。まだ序章だけどワクワクします。</p>
+          </div>
+        </article>
+      </section>
+    </main>
+  </template>
+
+  <!-- JS（相対パスに修正） -->
+  <script src="./js/script.js"></script>
 </body>
 </html>
