@@ -324,7 +324,7 @@ body {
       gap: 1.5vw; /* ボタン間のすき間（任意） */
     }
     .bottom-nav a {
-      border: 1px solid currentColor;   /* 文字と同じ色の細い線 */
+      border: 1px solid #ccc;   /* 文字と同じ色の細い線 */
       border-radius: 0px;               /* 角丸*/
       padding: 2vh 4vw;                /* 触りやすいタップ領域 */
       line-height: 1;                   /* ボタン内の縦詰め */
