@@ -171,3 +171,159 @@ body {
     text-decoration: underline;
   }
   
+
+  /* ====== ボトムナビ（デフォルトは非表示） ====== */
+.bottom-nav {
+    display: none;
+    background: #fff;
+    border-top: 1px solid #ddd;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 1000;
+    height: 56px;
+    padding-bottom: env(safe-area-inset-bottom); /* iOS安全領域 */
+  }
+  .bottom-nav ul {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+    margin: 0; padding: 0;
+    list-style: none;
+    height: 100%;
+  }
+  .bottom-nav a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    font-size: 12px;
+    color: #5A5A5A;
+    padding: 0 6px;
+  }
+  .bottom-nav a.active { font-weight: bold; }
+  
+  /* ====== スマホ幅で 1カラム化 & ボトムナビ表示 ====== */
+  @media (max-width: 768px) {
+    /* 全体を縦並びに */
+    .container {
+      display: block;
+      margin: 0; /* 余白を詰める */
+      min-height: auto;
+    }
+    /* 左カラムは隠す（=1カラム化） */
+    .panel.left { display: none; }
+  
+    /* 右カラムは全幅で */
+    .panel.right,
+    #ajax-content {
+      padding: 1rem;
+    }
+  
+    /* ボトムナビを表示。被り対策で下パディングを確保 */
+    body {
+      padding-bottom: calc(56px + env(safe-area-inset-bottom));
+    }
+    .bottom-nav { display: block; }
+  
+    /* memo ページは1カラムの読みやすい組み方に */
+    .memo-list .memo-entry {
+      display: block;
+    }
+    .memo-entry header { margin-bottom: 0.5rem; }
+  }
+  
+  /* 活動リスト：年と本文で2カラム */
+.activities {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .activities .activity {
+    display: grid;
+    grid-template-columns: 3rem 1fr; /* 左：年 / 右：本文 */
+    gap: 0.25rem 0.5rem;
+    align-items: start;
+    padding: 0.5rem 0;
+  }
+  .activities .year {
+    letter-spacing: 0.02em;
+    white-space: nowrap; /* 年が折り返されないように */
+    opacity: 0.9;
+  }
+  .activities .detail {
+    min-width: 0; /* 長文でもきれいに折り返し */
+  }
+  
+  /* サブ項目（例：solo exhibition） */
+  .activities .sub {
+    margin: 0.25rem 0 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .activities .sub li {
+    margin: 0.125rem 0 0 0;
+  }
+  
+  /* 画面が狭い時は自然に1カラムへ */
+  @media (max-width: 768px) {
+    .activities .activity { grid-template-columns: 4.5rem 1fr; }
+  }
+  @media (max-width: 480px) {
+    .activities .activity { grid-template-columns: 1fr; }
+    .activities .year { opacity: 0.6; margin-bottom: 0.125rem; }
+  }
+
+  .education {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .education .edu-item {
+    display: grid;
+    grid-template-columns: 7rem 1fr; /* 左：年 / 右：本文 */
+    gap: 0.25rem 0.5rem;
+    align-items: start;
+    padding: 0.5rem 0;
+  }
+  .education .year {
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    opacity: 0.9;
+  }
+  .education .detail {
+    min-width: 0;
+  }
+  
+  @media (max-width: 480px) {
+    .education .edu-item {
+      grid-template-columns: 1fr;
+    }
+    .education .year {
+      opacity: 0.6;
+      margin-bottom: 0.125rem;
+    }
+  }
+  /* ===== モバイルのボトムナビを“角丸なしの枠ボタン”に ===== */
+@media (max-width: 768px) {
+    .bottom-nav ul {
+      gap: 1.5vw; /* ボタン間のすき間（任意） */
+    }
+    .bottom-nav a {
+      border: 1px solid currentColor;   /* 文字と同じ色の細い線 */
+      border-radius: 0px;               /* 角丸*/
+      padding: 2vh 4vw;                /* 触りやすいタップ領域 */
+      line-height: 1;                   /* ボタン内の縦詰め */
+      font-size: 12px;                  /* 既存値を踏襲 */
+      color: #5A5A5A;                   /* 既存の文字色と合わせる */
+    }
+    /* グローバルの hover アニメを打ち消す */
+    .bottom-nav a:hover {
+      letter-spacing: 0; 
+    }
+    /* アクティブ＝今いるページ：塗りつぶし＆文字反転 */
+    .bottom-nav a.active {
+      background-color: #5A5A5A;
+      color: #fff;
+      font-weight: normal;
+    }
+  }
