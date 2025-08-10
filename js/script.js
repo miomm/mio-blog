@@ -43,16 +43,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 <button type="button" class="hint-toggle" data-target="hint7" aria-expanded="false">hint07</button>
                 <div id="hint7" class="hint-body" hidden>私の名前はmioである</div>
-
-                <button type="button" class="hint-toggle" data-target="hint8" aria-expanded="false">hint08</button>
-                <div id="hint8" class="hint-body" hidden>本当はmi.orgというドメインにしたかった</div>
-
-                <button type="button" class="hint-toggle" data-target="hint9" aria-expanded="false">hint09</button>
-                <div id="hint9" class="hint-body" hidden>2文字では短すぎた</div>
-
-                <button type="button" class="hint-toggle" data-target="hint10" aria-expanded="false">hint10</button>
-                <div id="hint10" class="hint-body" hidden>miomi.orgは...</div>
-
             </div>`;
 
 // クリックで対象のヒント本文をトグル
