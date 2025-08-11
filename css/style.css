@@ -168,7 +168,8 @@ body {
   
   /* about.html 相当の本文内リンク */
   .panel.right .about-page a {
-    text-decoration: underline;
+    text-decoration: none;
+    color: #989898;
   }
   
 
