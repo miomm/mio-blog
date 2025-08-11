@@ -19,8 +19,8 @@
     <!-- 左メニュー -->
     <nav class="panel left">
       <ul>
-        <li><a href="https://miomatsui.notion.site/mio-matsui-1af0d40cac124466ad394591204f962b" target="_blank" rel="noopener noreferrer" class="external">works</a></li>
         <!-- SPA内リンクはハッシュを使う -->
+        <li><a href="#/works" class="ajax-link">works</a></li>
         <li><a href="#/about" class="ajax-link">about</a></li>
         <li><a href="#/bookmark" class="ajax-link">bookmark</a></li>
         <li><a href="#/memo" class="ajax-link">memo</a></li>
@@ -45,7 +45,7 @@
     <main>
       <p>miomiomi.org</p>
       <img
-      src="./img/iron_concrete_speaker.jpg"
+      src="./img/iron-concrete-speaker.jpg"
       alt="home image, my work photo. A steel pipe is placed on a concrete block, and a vibration speaker is attached to the pipe."
       width="250" height="auto;"
       class="home-image"
@@ -57,13 +57,13 @@
   <template id="tpl-about">
     <main class="about-page">
     　<img
-      src="./img/bamboo_speaker_spotlight.jpg"
+      src="./img/bamboo-speaker-spotlight.jpg"
       alt="my work photo.A diagonally cut piece of bamboo with a vibration speaker attached is lying on the ground, illuminated by a spotlight."
       width="190" height="auto;"
       class="about-image"
       >
       <h2 class="section-title">About</h2>
-      <p class="aboutname">松井 美緒 mio matsui, 2000年生まれ。<br>身体と場所の関係にある感覚に着目し、音をきっかけに想像力を喚起するための作品を制作している。</p>
+      <p class="aboutname">松井 美緒 mio matsui, 2000年生まれ。<br>身体と場所の関係に着目し、音をきっかけに想像力を喚起するための作品を制作している。</p>
       <ul class="education">
         <li class="edu-item">
           <span class="year">2019–2023</span>
@@ -209,7 +209,8 @@
       </section>
     </main>
   </template>
-
+<!-- Markdown パーサ（Marked）を先に読み込む -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <!-- JS（相対パスに修正） -->
   <script src="./js/script.js"></script>
   <nav class="bottom-nav" aria-label="モバイルメニュー">

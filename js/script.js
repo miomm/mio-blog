@@ -1,136 +1,301 @@
 // js/script.js
 document.addEventListener('DOMContentLoaded', () => {
-    const contentEl = document.getElementById('ajax-content');
-    const container = document.querySelector('.container');
-  
-    // 3カラム目の要素を用意（なければ生成）
-    let thirdCol = document.getElementById('third-column');
-    if (!thirdCol) {
-      thirdCol = document.createElement('aside');
-      thirdCol.className = 'panel third';
-      thirdCol.id = 'third-column';
-      thirdCol.innerHTML = '<div id="third-content"></div>';
-      container.appendChild(thirdCol);
-    }
-    const thirdContent = thirdCol.querySelector('#third-content');
-  
-    // 開閉用の関数
-    function openThird() {
-        // 本文＋ヒントUIをまとめて挿入
-            thirdContent.innerHTML = `
-            <p class="third-text">
-                このサイトのタイトルとして表示している "yes, I'm dreaming." には意味、由来があります。それは一体なんでしょう？<br>
-                There's a meaning and a story behind the title, "yes, I'm dreaming." . What is it?
-            </p>
+  const contentEl = document.getElementById('ajax-content');
+  const container = document.querySelector('.container');
 
-            <div class="hints">
-                <button type="button" class="hint-toggle" data-target="hint1" aria-expanded="false">hint01</button>
-                <div id="hint1" class="hint-body" hidden>私のことを深く知っている必要はない<br>You don’t need to know me well.
-</div>
+  // ====== 作品データ ======
+  const DEFAULT_FALLBACK_EXT = 'jpg';
 
-                <button type="button" class="hint-toggle" data-target="hint2" aria-expanded="false">hint02</button>
-                <div id="hint2" class="hint-body" hidden>インターネットが関係している<br>It’s related to the internet.</div>
+  // slug は img/works/<slug>/ と content/works/<slug>.md の“<slug>”と完全一致
+  const WORKS = [
+    { slug: 'zanpa-echoingwaves-2025',                title: '残波 -Echoing waves' },
+    { slug: 'zanpa-2024',                              title: '残波' },
+    { slug: 'echochops-AppleVisionPro-inIAMAS-2025',  title: 'Echochops Performance in IAMAS' },
+    { slug: 'ghosts-inLinz-2023',                      title: 'Ghosts' },
+    { slug: 'waterwalk-AppleVisionPro-2025',           title: 'WaterWalk2024 -Apple Vision Pro' },
+    { slug: 'sacrifice-container-mexico-2023',         title: 'Sacrifice container' },
+    { slug: 'unreal-container-yokohama-2021',          title: 'unreal container' },
+    { slug: 'SFC-ORF-Yokai-2022',                      title: '妖怪たちの声 -異形を知覚する-' },
+  ];
+  // ====== 作品データここまで ======
 
-                <button type="button" class="hint-toggle" data-target="hint3" aria-expanded="false">hint03</button>
-                <div id="hint3" class="hint-body" hidden>このサイトの中を探す必要はない<br>No need to search within this site.</div>
+  // 3カラム目の要素を用意（なければ生成）
+  let thirdCol = document.getElementById('third-column');
+  if (!thirdCol) {
+    thirdCol = document.createElement('aside');
+    thirdCol.className = 'panel third';
+    thirdCol.id = 'third-column';
+    thirdCol.innerHTML = '<div id="third-content"></div>';
+    container.appendChild(thirdCol);
+  }
+  const thirdContent = thirdCol.querySelector('#third-content');
 
-                <button type="button" class="hint-toggle" data-target="hint4" aria-expanded="false">hint04</button>
-                <div id="hint4" class="hint-body" hidden>対になっている<br>It’s paired with something.</div>
+  // 開いた直後の外クリック誤閉じ抑制
+  let suppressNextOutsideClose = false;
 
-                <button type="button" class="hint-toggle" data-target="hint5" aria-expanded="false">hint05</button>
-                <div id="hint5" class="hint-body" hidden>何かに対する応答である<br>It’s a response to something.</div>
-
-                <button type="button" class="hint-toggle" data-target="hint6" aria-expanded="false">hint06</button>
-                <div id="hint6" class="hint-body" hidden>ドメインが関係している<br>The domain is involved.</div>
-
-                <button type="button" class="hint-toggle" data-target="hint7" aria-expanded="false">hint07</button>
-                <div id="hint7" class="hint-body" hidden>私の名前はmioである<br>My name is mio.</div>
-            </div>`;
-
-// クリックで対象のヒント本文をトグル
-thirdContent.querySelectorAll('.hint-toggle').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const id = btn.dataset.target;
-    const body = thirdContent.querySelector('#' + id);
-    const willOpen = body.hasAttribute('hidden');
-    body.toggleAttribute('hidden');             // 表示/非表示
-    btn.setAttribute('aria-expanded', String(willOpen));
-  });
-});
-
-        
-        thirdCol.classList.add('active');
-      container.classList.add('three-columns');
-    }
-    function closeThird() {
-      thirdCol.classList.remove('active');
-      container.classList.remove('three-columns');
-      thirdContent.textContent = '';
-    }
-  
-    // ルーティング表（ハッシュ -> テンプレートID）
-    const routes = {
-      '': 'tpl-home',
-      '#/': 'tpl-home',
-      '#/about': 'tpl-about',
-      '#/bookmark': 'tpl-bookmark',
-      '#/memo': 'tpl-memo'
+  // 画像パス（WebP優先）
+  function imgPaths(slug, fallbackExt = DEFAULT_FALLBACK_EXT) {
+    const base = `./img/works/${slug}`;
+    return {
+      thumbWebp: `${base}/thumb.webp`,
+      thumb: `${base}/thumb.${fallbackExt}`,
+      coverWebp: `${base}/cover.webp`,
+      cover: `${base}/cover.${fallbackExt}`,
     };
-  
-    // ---------- ボトムナビを左メニューから自動生成 ----------
-    const bottomNavRoot = document.querySelector('.bottom-nav ul');
-    if (bottomNavRoot) {
-      const leftLinks = document.querySelectorAll('.panel.left a');
-      leftLinks.forEach((srcA) => {
-        const li = document.createElement('li');
-        const a = document.createElement('a');
-        a.href = srcA.getAttribute('href');
-        a.textContent = srcA.textContent.replace('↗', '').trim();
-        srcA.classList.forEach(c => a.classList.add(c));
-        if (srcA.target) a.target = srcA.target;
-        if (srcA.rel) a.rel = srcA.rel;
-  
-        li.appendChild(a);
-        bottomNavRoot.appendChild(li);
+  }
+
+  // third panel 制御
+  function setThird(html) {
+    thirdContent.innerHTML = html;
+    thirdCol.classList.add('active');
+    container.classList.add('three-columns');
+  }
+  function closeThird() {
+    thirdCol.classList.remove('active', 'works-detail');
+    container.classList.remove('three-columns');
+    thirdContent.textContent = '';
+  }
+
+  // why? ヒント
+  function openWhyHints() {
+    setThird(`
+      <p class="third-text">
+        このサイトのタイトルとして表示している "yes, I'm dreaming." には意味、由来があります。それは一体なんでしょう？<br>
+        There's a meaning and a story behind the title, "yes, I'm dreaming." . What is it?
+      </p>
+      <div class="hints">
+        ${[1,2,3,4,5,6,7].map(n => `
+          <button type="button" class="hint-toggle" data-target="hint${n}" aria-expanded="false">hint0${n}</button>
+          <div id="hint${n}" class="hint-body" hidden>${
+            ({
+              1:'私のことを深く知っている必要はない<br>You don’t need to know me well.',
+              2:'インターネットが関係している<br>It’s related to the internet.',
+              3:'このサイトの中を探す必要はない<br>No need to search within this site.',
+              4:'対になっている<br>It’s paired with something.',
+              5:'何かに対する応答である<br>It’s a response to something.',
+              6:'ドメインが関係している<br>The domain is involved.',
+              7:'私の名前はmioである<br>My name is mio.'
+            })[n]
+          }</div>
+        `).join('')}
+      </div>
+    `);
+
+    thirdContent.querySelectorAll('.hint-toggle').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.target;
+        const body = thirdContent.querySelector('#' + id);
+        const willOpen = body.hasAttribute('hidden');
+        body.toggleAttribute('hidden');
+        btn.setAttribute('aria-expanded', String(willOpen));
+      });
+    });
+  }
+
+  // ルーティング
+  const routes = {
+    '': renderHome,
+    '#/': renderHome,
+    '#/about': () => renderTemplate('tpl-about'),
+    '#/bookmark': () => renderTemplate('tpl-bookmark'),
+    '#/memo': () => renderTemplate('tpl-memo'),
+    '#/works': renderWorks,
+  };
+
+  // ボトムナビ生成
+  const bottomNavRoot = document.querySelector('.bottom-nav ul');
+  if (bottomNavRoot) {
+    const leftLinks = document.querySelectorAll('.panel.left a');
+    bottomNavRoot.innerHTML = '';
+    leftLinks.forEach((srcA) => {
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = srcA.getAttribute('href');
+      a.textContent = srcA.textContent.replace('↗', '').trim();
+      srcA.classList.forEach(c => a.classList.add(c));
+      if (srcA.target) a.target = srcA.target;
+      if (srcA.rel) a.rel = srcA.rel;
+      li.appendChild(a);
+      bottomNavRoot.appendChild(li);
+    });
+  }
+
+  // テンプレ描画
+  function renderTemplate(tplId) {
+    const tpl = document.getElementById(tplId);
+    contentEl.innerHTML = '';
+    if (tpl && 'content' in tpl) {
+      contentEl.appendChild(tpl.content.cloneNode(true));
+    }
+  }
+
+  // Home
+  function renderHome() {
+    renderTemplate('tpl-home');
+    const whyLink = document.getElementById('why-link');
+    if (whyLink) {
+      whyLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (thirdCol.classList.contains('active')) {
+          closeThird();
+        } else {
+          suppressNextOutsideClose = true;
+          openWhyHints();
+          setTimeout(() => { suppressNextOutsideClose = false; }, 0);
+        }
       });
     }
-  
-    // 指定ルートを描画
-    function render(hash) {
-      // 毎回 third panel を初期状態に戻す
-      closeThird();
-  
-      const tplId = routes[hash] || 'tpl-home';
-      const tpl = document.getElementById(tplId);
-      if (tpl && 'content' in tpl) {
-        contentEl.innerHTML = '';
-        contentEl.appendChild(tpl.content.cloneNode(true));
-  
-        // why? リンクのイベント（home のときだけ存在）
-        const whyLink = document.getElementById('why-link');
-        if (whyLink) {
-          whyLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (thirdCol.classList.contains('active')) {
-              closeThird(); // 開いていれば閉じる
-            } else {
-              openThird();  // 閉じていれば開く
-            }
-          });
+  }
+
+  // works 一覧（サムネはタイトル付きのまま）
+  function renderWorks() {
+    contentEl.innerHTML = `
+      <main>
+        <h2 class="section-title">works</h2>
+        <div class="works-grid" id="works-grid" aria-live="polite"></div>
+      </main>
+    `;
+
+    const grid = document.getElementById('works-grid');
+
+    WORKS.forEach((item, index) => {
+      const paths = imgPaths(item.slug, item.fallback);
+      const a = document.createElement('a');
+      a.href = '#';
+      a.className = 'works-card';
+      a.setAttribute('data-id', String(index));
+      a.innerHTML = `
+        <div class="works-thumb">
+          <picture>
+            <source type="image/webp" srcset="${paths.thumbWebp}">
+            <img src="${paths.thumb}" alt="${item.title}" loading="lazy" decoding="async">
+          </picture>
+        </div>
+        <div class="works-caption">${item.title}</div>
+      `;
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        openWorkDetail(item);
+      });
+      grid.appendChild(a);
+    });
+  }
+
+  // 詳細を読み込んで表示（まず .md → なければ .html）
+  async function openWorkDetail(item) {
+    const paths = imgPaths(item.slug, item.fallback);
+    thirdCol.classList.add('works-detail');
+    suppressNextOutsideClose = true;
+
+    // 先に土台だけ描画：※ タイトルは表示しない！
+    setThird(`
+      <div class="work-detail">
+        <picture>
+          <source type="image/webp" srcset="${paths.coverWebp}">
+          <img src="${paths.cover}" alt="${item.title}" decoding="async">
+        </picture>
+        <div class="body markdown-body">読み込み中…</div>
+      </div>
+    `);
+    setTimeout(() => { suppressNextOutsideClose = false; }, 0);
+
+    const mdUrl = `./content/works/${item.slug}.md`;
+    const htmlUrl = `./content/works/${item.slug}.html`;
+    const bodyEl = thirdContent.querySelector('.body');
+
+    try {
+      // 1) Markdown を試す
+      let res = await fetch(mdUrl, { cache: 'no-cache' });
+      if (res.ok) {
+        const md = await res.text();
+        if (!window.marked) throw new Error('marked not loaded');
+        const htmlFromMd = window.marked.parse(md);
+        bodyEl.innerHTML = htmlFromMd;
+        upgradeLinkCards(bodyEl); // URLカード化
+      } else {
+        // 2) なければ HTML を試す
+        res = await fetch(htmlUrl, { cache: 'no-cache' });
+        if (res.ok) {
+          const html = await res.text();
+          bodyEl.innerHTML = html;
+          upgradeLinkCards(bodyEl); // URLカード化
+        } else {
+          // 3) どちらも無ければ空に
+          bodyEl.textContent = '';
         }
       }
-  
-      // active 切替（サイド＆ボトムの両方を同期）
-      const allNavLinks = document.querySelectorAll('.ajax-link');
-      allNavLinks.forEach(a => {
-        a.classList.toggle('active', a.getAttribute('href') === hash);
+
+      // カード化されなかった通常リンクは新規タブで
+      bodyEl.querySelectorAll('a[href^="http"]').forEach(a => {
+        if (!a.classList.contains('link-card')) {
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+        }
       });
+    } catch (err) {
+      console.info(`[works] detail not found or parser missing for "${item.slug}"`, err);
+      bodyEl.textContent = '';
     }
-  
-    // 初期表示
-    render(location.hash);
-  
-    // ハッシュ変更時
-    window.addEventListener('hashchange', () => render(location.hash));
+  }
+
+  // ルーター
+  function render(hash) {
+    closeThird(); // 画面切替ごとに third panel 初期化
+    const fn = routes[hash] || renderHome;
+    fn();
+
+    // active 切替
+    document.querySelectorAll('.ajax-link').forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === hash);
+    });
+  }
+
+  // 初期表示＆ハッシュ監視
+  render(location.hash);
+  window.addEventListener('hashchange', () => render(location.hash));
+
+  // 外クリック／Escで閉じる
+  document.addEventListener('click', (e) => {
+    if (!thirdCol.classList.contains('active')) return;
+    if (suppressNextOutsideClose) return;
+    if (thirdCol.contains(e.target)) return;
+    closeThird();
   });
-  
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && thirdCol.classList.contains('active')) {
+      closeThird();
+    }
+  });
+
+  // ===== URLカード化（画像なし） =====
+  function upgradeLinkCards(scope) {
+    // <p>内にリンクが1個だけ（裸URLやリンク1個の段落）をカード化
+    const paras = scope.querySelectorAll('p');
+    paras.forEach(p => {
+      const a = p.querySelector('a[href^="http"]');
+      if (!a) return;
+
+      // 段落要素内の“唯一の子要素”が <a> のときだけ
+      const onlyOneElement = p.children.length === 1 && p.children[0] === a;
+      if (!onlyOneElement) return;
+
+      const url = a.href;
+      const title = (a.textContent || url).trim();
+      const host = new URL(url).hostname.replace(/^www\./,'');
+      const favicon = `https://www.google.com/s2/favicons?sz=64&domain=${host}`;
+
+      const card = document.createElement('a');
+      card.href = url;
+      card.target = '_blank';
+      card.rel = 'noopener noreferrer';
+      card.className = 'link-card noimg';
+      card.innerHTML = `
+        <div class="link-card__meta">
+          <div class="link-card__host"><img src="${favicon}" alt="">${host}</div>
+          <div class="link-card__title">${title}</div>
+        </div>
+      `;
+      p.replaceWith(card);
+    });
+  }
+});
