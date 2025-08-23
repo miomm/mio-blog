@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sound Map — miomiomi.org</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
+
+  <!-- クリップ＆バッファ用 -->
+  <script src="https://cdn.jsdelivr.net/npm/leaflet-boundary-canvas@1.0.0/src/BoundaryCanvas.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+
+  <!-- サイトのトーン（背景/文字色・フォント） -->
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+  <style>
+    :root{ --bg:#F1F1F1; --text:#5A5A5A; --border:#ddd; --accent:#007aff; }
+    html,body{height:100%;}
+    body{margin:0;background:var(--bg);color:var(--text);font-size:14px;}
+    a{color:var(--text);text-decoration:none;border-bottom:1px dotted #aaa;}
+    header{font-size:16px;margin:16px 10px;}
+    header a{border:0;}
+
+    .wrap{display:grid;grid-template-columns:1.3fr 1fr;gap:12px;padding:0 2% 2%;}
+    #map{width:100%;height:70vh;border:1px solid var(--border);background:#fafafa;position:relative;}
+
+    .panel{border:1px solid var(--border);background:#fff;padding:12px;display:flex;flex-direction:column;gap:10px;border-radius:8px;}
+    .panel h2{font-size:14px;margin:0 0 6px;font-weight:bold;color:var(--text);}
+    .post{display:grid;grid-template-columns:120px 1fr;gap:10px;align-items:start;}
+    .post img{width:120px;height:auto;border:1px solid var(--border);display:block;background:#f5f5f5;}
+    .meta{font-size:12px;line-height:1.6;color:var(--text);}
+
+    @media (max-width:900px){
+      .wrap{grid-template-columns:1fr;}
+      #map{height:55vh;}
+      .post{grid-template-columns:1fr;}
+      .post img{width:100%;}
+    }
+
+    .leaflet-marker-icon{filter:grayscale(100%);}
+    .leaflet-attribution-flag {display: none !important;}
+
+    /* 位置記録コントロール（地図右上） */
+    .track-controls{
+      position:absolute; right:10px; top:10px; z-index:1000;
+      background:#fff; border:1px solid var(--border); border-radius:10px;
+      padding:10px; box-shadow:0 2px 6px rgba(0,0,0,.06); font-size:12px; min-width:260px;
+    }
+    .track-controls h3{margin:0 0 6px; font-size:12px;}
+    .row{display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:4px 0;}
+    .row button{
+      padding:6px 10px; border:1px solid var(--border); background:#fff; border-radius:6px; cursor:pointer;
+    }
+    .row button.primary{border-color:var(--accent); color:#fff; background:var(--accent);}
+    .row button:disabled{opacity:.5; cursor:not-allowed;}
+    .row .time{min-width:120px; font-variant-numeric:tabular-nums;}
+    .row .grow{flex:1;}
+    .row input[type="range"]{width:100%;}
+
+    /* 現在地ボタン（右下） */
+    .locate-box{
+      position:absolute; right:10px; bottom:10px; z-index:1000;
+      background:#fff; border:1px solid var(--border); border-radius:10px;
+      padding:8px; box-shadow:0 2px 6px rgba(0,0,0,.06); font-size:12px;
+      display:flex; gap:8px; align-items:center;
+    }
+    .locate-box button{
+      padding:6px 10px; border:1px solid var(--border); background:#fff; border-radius:6px; cursor:pointer;
+    }
+    .locate-box button.active{ border-color:var(--accent); color:#fff; background:var(--accent); }
+    .legend-dot{width:10px;height:10px;border-radius:50%;background:#007aff;border:2px solid #fff;box-shadow:0 0 0 2px #007aff;}
+  </style>
+</head>
+<body>
+  <header><a href="/">yes, I'm dreaming.</a></header>
+
+  <div class="wrap">
+    <div id="map" aria-label="録音と画像のサウンドマップ">
+      <!-- 位置記録・再生コントロール -->
+      <div class="track-controls" id="trackCtrl">
+        <h3>移動ログ</h3>
+        <div class="row">
+          <button id="btnStart" class="primary">記録開始</button>
+          <button id="btnStop" disabled>記録終了</button>
+          <span class="time" id="recLen">--:--</span>
+        </div>
+        <div class="row">
+          <button id="btnPlay" disabled>再生</button>
+          <button id="btnPause" disabled>一時停止</button>
+          <span class="time" id="playLen">--:-- / --:--</span>
+        </div>
+        <div class="row">
+          <input id="progress" class="grow" type="range" min="0" max="1000" value="0" step="1" />
+        </div>
+        <div class="row" style="justify-content:flex-end">
+          <button id="btnClear">クリア</button>
+        </div>
+      </div>
+
+      <!-- 現在地コントロール -->
+      <div class="locate-box" id="locateBox">
+        <span class="legend-dot" aria-hidden="true"></span>
+        <button id="btnLocate" title="現在地の表示/非表示を切替">現在地</button>
+        <label style="display:flex;align-items:center;gap:4px;user-select:none;">
+          <input type="checkbox" id="chkFollow" checked /> フォロー
+        </label>
+      </div>
+    </div>
+
+    <aside class="panel" id="detail" aria-live="polite">
+      <h2>選択中の投稿</h2>
+      <div class="post" id="post">
+        <img id="post-img" alt="選択中の画像のプレビュー" />
+        <div class="meta">
+          <div id="post-title" style="font-weight:600;">（ピンを選択してください）</div>
+          <div id="post-date"></div>
+          <audio id="post-audio" controls preload="none" style="width:100%;margin:6px 0 2px;"></audio>
+          <div id="post-caption"></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    // ---------------- 投稿データ（サンプル） ----------------
+    const PINS = [
+      { id: 'tokyo-station', title: '東京駅の朝',
+        lat: 35.681236, lng: 139.767125,
+        image: './assets/img/sample1.jpg',
+        audio: './assets/audio/sample1.wav',
+        date: '2025-08-01',
+        caption: '始発前の構内で、低い環境音と通気音。'
+      }
+    ];
+
+    // ---------------- 地図 ----------------
+    const map = L.map('map', { zoomControl: true, attributionControl: true });
+
+    // ベース：OSM（常時表示。不要ならこのレイヤーごと削除OK）
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>',
+      maxZoom: 19
+    }).addTo(map);
+
+    // 日本外周ポリゴン（凸包） → 少し外側にオフセットして GSI を“内側だけ”描画
+    fetch('japan_outer_hull.geojson')
+      .then(r => r.json())
+      .then(boundary => {
+        const BUFFER_KM = 23;
+        const buffered = turf.buffer(boundary, BUFFER_KM, { units: 'kilometers' });
+
+        const tmp = L.geoJSON(buffered);
+        map.fitBounds(tmp.getBounds());
+
+        new L.TileLayer.BoundaryCanvas(
+          'https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png',
+          { boundary: buffered, maxZoom: 18,
+            attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">地理院タイル</a>' }
+        ).addTo(map);
+      });
+
+    // ---------------- ピン ----------------
+    const group = L.featureGroup().addTo(map);
+    const markers = [];
+    PINS.forEach((p, i) => {
+      const m = L.marker([p.lat, p.lng]).addTo(group);
+      m.on('click', () => selectPost(i, true));
+      markers.push(m);
+    });
+
+    function selectPost(index, fly=false){
+      const p = PINS[index];
+      if (!p) return;
+      document.getElementById('post-img').src = p.image || '';
+      document.getElementById('post-title').textContent = p.title || '';
+      document.getElementById('post-date').textContent = p.date ? new Date(p.date).toLocaleDateString('ja-JP') : '';
+      document.getElementById('post-caption').textContent = p.caption || '';
+      const audioEl = document.getElementById('post-audio');
+      audioEl.src = p.audio || ''; audioEl.load();
+      if (markers[index] && fly){
+        map.flyTo(markers[index].getLatLng(), Math.max(map.getZoom(), 13), { duration: 0.6 });
+      }
+    }
+    if (PINS.length) selectPost(0);
+
+    // ---------------- 位置記録 & 再生（音声連動なし） ----------------
+    const btnStart = document.getElementById('btnStart');
+    const btnStop  = document.getElementById('btnStop');
+    const btnPlay  = document.getElementById('btnPlay');
+    const btnPause = document.getElementById('btnPause');
+    const btnClear = document.getElementById('btnClear');
+    const recLenEl = document.getElementById('recLen');
+    const playLenEl= document.getElementById('playLen');
+    const progress = document.getElementById('progress');
+
+    // 記録データ：[{lat,lng,t(ms)}...]
+    let watchId = null;
+    let track = [];
+    let t0 = 0;            // 記録開始の絶対時刻（ms）
+    let durationMs = 0;    // 記録総時間
+    let fullLine = null;   // 全体パス（灰）
+    let progLine = null;   // 進捗パス（青）
+    let headMarker = null; // 再生ヘッド（現在位置）
+    let recTimerId = 0;    // 経過表示タイマー
+    let keepAliveId = 0;   // ★ 静止中でも点を打つ“キープアライブ”
+
+    // 再生管理
+    let playing = false;
+    let playStartWall = 0; // 再生開始の壁時計（ms）
+    let playStartT = 0;    // 再生開始時のトラック内時刻（ms）
+    let rafId = 0;
+
+    // ---- 記録開始
+    btnStart.addEventListener('click', async ()=>{
+      if (!navigator.geolocation) { alert('このブラウザは位置情報に対応していません'); return; }
+      cleanupTrackLayers();
+      track = [];
+      t0 = Date.now();
+      recLenEl.textContent = '00:00';
+      durationMs = 0;
+      startRecTimer();
+      startKeepAlive(); // ★ 追加
+
+      // 最初の現在地を取得（即時）
+      navigator.geolocation.getCurrentPosition(pos=>{
+        pushSample(pos);
+      }, err=>console.warn(err), {enableHighAccuracy:true, maximumAge:0, timeout:10000});
+
+      // 継続記録（移動がない端末では発火が少ないことがある）
+      watchId = navigator.geolocation.watchPosition(pos=>{
+        pushSample(pos);
+      }, err=>console.warn(err), {enableHighAccuracy:true, maximumAge:0});
+
+      btnStart.disabled = true;
+      btnStop.disabled = false;
+      btnPlay.disabled = true;
+      btnPause.disabled = true;
+      progress.value = 0;
+      playLenEl.textContent = '--:-- / --:--';
+    });
+
+    // ---- 記録終了
+    btnStop.addEventListener('click', ()=>{
+      if (watchId != null) navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+      stopRecTimer();
+      stopKeepAlive(); // ★ 追加
+      btnStart.disabled = false;
+      btnStop.disabled = true;
+
+      if (track.length === 0) {
+        alert('位置データが取得できませんでした（権限やHTTPSを確認）');
+        return;
+      }
+      if (track.length === 1) {
+        // ★ 同一点の終端サンプルを追加して“2点”に
+        const now = Date.now();
+        const p0 = track[0];
+        track.push({ lat: p0.lat, lng: p0.lng, t: now });
+      }
+
+      durationMs = track[track.length-1].t - track[0].t;
+      progress.max = Math.max(1, durationMs); // ms
+      progress.value = 0;
+      recLenEl.textContent = fmt(durationMs/1000);
+      playLenEl.textContent = `00:00 / ${fmt(durationMs/1000)}`;
+
+      // パス描画
+      const latlngs = track.map(p=>[p.lat, p.lng]);
+      fullLine = L.polyline(latlngs, {color:'#666', weight:4, opacity:0.5}).addTo(map);
+      progLine = L.polyline([], {color: '#007aff', weight:5, opacity:1}).addTo(map);
+      headMarker = L.circleMarker(latlngs[0], {radius:6, color:'#007aff', fillColor:'#fff', fillOpacity:1, weight:3}).addTo(map);
+
+      // 表示範囲調整
+      const b = L.latLngBounds(latlngs);
+      map.fitBounds(b.pad(0.2));
+
+      btnPlay.disabled = false;
+      btnPause.disabled = true;
+    });
+
+    // ---- 再生
+    btnPlay.addEventListener('click', ()=>{
+      if (track.length < 2) return;
+      if (!playing) {
+        playing = true;
+        btnPlay.disabled = true;
+        btnPause.disabled = false;
+        playStartWall = performance.now();
+        playStartT = Number(progress.value);
+        tick();
+      }
+    });
+
+    // ---- 一時停止
+    btnPause.addEventListener('click', ()=>{
+      if (!playing) return;
+      playing = false;
+      btnPlay.disabled = false;
+      btnPause.disabled = true;
+      if (rafId) cancelAnimationFrame(rafId);
+    });
+
+    // ---- シーク（つまみ操作で移動）
+    progress.addEventListener('input', ()=>{
+      if (track.length < 2) return;
+      const t = Number(progress.value);
+      renderAt(t);
+      playLenEl.textContent = `${fmt(t/1000)} / ${fmt(durationMs/1000)}`;
+    });
+
+    // ---- クリア
+    btnClear.addEventListener('click', ()=>{
+      if (watchId != null) navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+      stopRecTimer();
+      stopKeepAlive(); // ★ 追加
+      playing = false; if (rafId) cancelAnimationFrame(rafId);
+
+      cleanupTrackLayers();
+      track = [];
+      durationMs = 0;
+      btnStart.disabled = false;
+      btnStop.disabled = true;
+      btnPlay.disabled = true;
+      btnPause.disabled = true;
+      recLenEl.textContent = '--:--';
+      playLenEl.textContent = '--:-- / --:--';
+      progress.value = 0;
+      progress.max = 1000;
+    });
+
+    // ---- 毎フレーム進める
+    function tick(){
+      if (!playing) return;
+      const elapsed = performance.now() - playStartWall; // ms
+      let t = playStartT + elapsed;
+      if (t >= durationMs) {
+        t = durationMs;
+        renderAt(t);
+        progress.value = t;
+        playLenEl.textContent = `${fmt(t/1000)} / ${fmt(durationMs/1000)}`;
+        playing = false;
+        btnPlay.disabled = false;
+        btnPause.disabled = true;
+        return;
+      }
+      renderAt(t);
+      progress.value = t;
+      playLenEl.textContent = `${fmt(t/1000)} / ${fmt(durationMs/1000)}`;
+      rafId = requestAnimationFrame(tick);
+    }
+
+    // ---- t(ms) 時点の位置まで“進捗パス”を描画
+    function renderAt(t){
+      if (!progLine || track.length<2) return;
+      // t に到達するまでの区間を集め、途中の点を補間
+      const pts = [];
+      for (let i=0;i<track.length-1;i++){
+        const a = track[i], b = track[i+1];
+        if (i===0) pts.push([a.lat,a.lng]);
+        if (t >= b.t - track[0].t) { // 区間をまるごと含む
+          pts.push([b.lat,b.lng]);
+          continue;
+        }
+        if (t <= a.t - track[0].t) { // まだこの区間に入っていない
+          break;
+        }
+        // 区間内：時間で線形補間
+        const ta = a.t - track[0].t, tb = b.t - track[0].t;
+        const ratio = (t - ta) / (tb - ta);
+        const lat = a.lat + (b.lat - a.lat)*ratio;
+        const lng = a.lng + (b.lng - a.lng)*ratio;
+        pts.push([lat,lng]);
+        break;
+      }
+      progLine.setLatLngs(pts);
+      if (headMarker && pts.length){
+        headMarker.setLatLng(pts[pts.length-1]);
+      }
+    }
+
+    // ---- 記録サンプル関連 ----
+    let lastPushT = 0;
+    let lastLatLng = null;
+    function pushSample(pos){
+      const t = Date.now();
+      const dt = t - (lastPushT || t0);
+      const lat = pos.coords.latitude, lng = pos.coords.longitude;
+      const ll = L.latLng(lat, lng);
+
+      // 1秒未満 & 5m未満の移動はスキップ（ノイズ除去）
+      if (lastLatLng){
+        const moved = map.distance(lastLatLng, ll);
+        if (dt < 1000 && moved < 5) return;
+      }
+
+      track.push({lat, lng, t});
+      lastPushT = t;
+      lastLatLng = ll;
+
+      // 記録中の経過表示
+      recLenEl.textContent = fmt((t - t0)/1000);
+    }
+
+    // ★ 静止中でも点を打つ“キープアライブ”（3秒以上更新が無ければ同座標で1点追加）
+    function startKeepAlive(){
+      if (keepAliveId) return;
+      keepAliveId = setInterval(()=>{
+        if (!t0 || !lastLatLng) return;
+        const now = Date.now();
+        if (now - lastPushT >= 3000) {
+          track.push({ lat: lastLatLng.lat, lng: lastLatLng.lng, t: now });
+          lastPushT = now;
+          recLenEl.textContent = fmt((now - t0)/1000);
+        }
+      }, 1000);
+    }
+    function stopKeepAlive(){
+      if (keepAliveId){ clearInterval(keepAliveId); keepAliveId = 0; }
+    }
+
+    // ---- ユーティリティ
+    function fmt(sec){
+      sec = Math.max(0, Math.floor(sec));
+      const m = Math.floor(sec/60).toString().padStart(2,'0');
+      const s = (sec%60).toString().padStart(2,'0');
+      return `${m}:${s}`;
+    }
+    function cleanupTrackLayers(){
+      if (fullLine){ map.removeLayer(fullLine); fullLine=null; }
+      if (progLine){ map.removeLayer(progLine); progLine=null; }
+      if (headMarker){ map.removeLayer(headMarker); headMarker=null; }
+    }
+    function startRecTimer(){
+      if (recTimerId) return;
+      recTimerId = setInterval(()=>{
+        if (!t0) return;
+        recLenEl.textContent = fmt((Date.now() - t0)/1000);
+      }, 250);
+    }
+    function stopRecTimer(){
+      if (recTimerId){ clearInterval(recTimerId); recTimerId = 0; }
+    }
+
+    // ---------------- 現在地表示（トグル＋精度円＋フォロー） ----------------
+    const btnLocate = document.getElementById('btnLocate');
+    const chkFollow = document.getElementById('chkFollow');
+    let locWatchId = null;
+    let meMarker = null;
+    let meCircle = null;
+
+    btnLocate.addEventListener('click', ()=>{
+      if (locWatchId == null) {
+        startLocate();
+      } else {
+        stopLocate();
+      }
+    });
+
+    function startLocate(){
+      if (!navigator.geolocation) { alert('このブラウザは位置情報に対応していません'); return; }
+      btnLocate.classList.add('active');
+      locWatchId = navigator.geolocation.watchPosition(onLocate, onLocateError, {
+        enableHighAccuracy: true, maximumAge: 0, timeout: 15000
+      });
+    }
+    function stopLocate(){
+      if (locWatchId != null) navigator.geolocation.clearWatch(locWatchId);
+      locWatchId = null;
+      btnLocate.classList.remove('active');
+      if (meMarker){ map.removeLayer(meMarker); meMarker = null; }
+      if (meCircle){ map.removeLayer(meCircle); meCircle = null; }
+    }
+    function onLocate(pos){
+      const lat = pos.coords.latitude, lng = pos.coords.longitude;
+      const acc = Math.max(5, Math.min(200, pos.coords.accuracy || 50)); // 5–200mに制限
+      const ll = L.latLng(lat, lng);
+
+      if (!meMarker){
+        meMarker = L.circleMarker(ll, {
+          radius: 6, color:'#007aff', weight:3, fillColor:'#fff', fillOpacity:1
+        }).addTo(map);
+      } else {
+        meMarker.setLatLng(ll);
+      }
+      if (!meCircle){
+        meCircle = L.circle(ll, { radius: acc, color:'#007aff', weight:1, opacity:0.5, fillOpacity:0.1 });
+        meCircle.addTo(map);
+      } else {
+        meCircle.setLatLng(ll); meCircle.setRadius(acc);
+      }
+
+      if (chkFollow.checked){
+        map.panTo(ll, { animate:true });
+      }
+    }
+    function onLocateError(err){
+      console.warn('locate error:', err);
+      if (err.code === 1) alert('位置情報の許可が必要です（ブラウザ設定を確認してください）');
+    }
+
+    // UIが地図操作を邪魔しないように
+    L.DomEvent.disableClickPropagation(document.getElementById('trackCtrl'));
+    L.DomEvent.disableClickPropagation(document.getElementById('locateBox'));
+  </script>
+</body>
+</html>
