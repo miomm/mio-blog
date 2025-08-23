@@ -166,36 +166,27 @@
       maxZoom: 19
     }).addTo(map);
 
-    // 日本外周ポリゴン（凸包） → 少し外側にオフセットして GSI を“内側だけ”描画
-    fetch('japan_outer_hull.geojson')
-      .then(r => r.json())
-      .then(boundary => {
-        const BUFFER_KM = 23;
-        const buffered = turf.buffer(boundary, BUFFER_KM, { units: 'kilometers' });
+    let gsi = null;
 
-        const tmp = L.geoJSON(buffered);
-        map.fitBounds(tmp.getBounds());
+// 日本外周ポリゴン（凸包） → 少し外側にオフセットして GSI を“内側だけ”描画
+fetch('japan_outer_hull.geojson')
+  .then(r => r.json())
+  .then(boundary => {
+    const BUFFER_KM = 23;
+    const buffered = turf.buffer(boundary, BUFFER_KM, { units: 'kilometers' });
 
-        let gsi; // ← 追加（上で宣言しておくと他でも参照できる）
-        fetch('japan_outer_hull.geojson')
-        .then(r => r.json())
-        .then(boundary => {
-            const BUFFER_KM = 23;
-            const buffered = turf.buffer(boundary, BUFFER_KM, { units: 'kilometers' });
+    const tmp = L.geoJSON(buffered);
+    map.fitBounds(tmp.getBounds());
 
-            const tmp = L.geoJSON(buffered);
-            map.fitBounds(tmp.getBounds());
-
-            gsi = new L.TileLayer.BoundaryCanvas(
-            'https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png',
-            {
-                boundary: buffered,
-                maxZoom: 18,
-                attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">地理院タイル</a>'
-            }
-            ).addTo(map);
+    gsi = new L.TileLayer.BoundaryCanvas(
+      'https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png',
+      {
+        boundary: buffered,
+        maxZoom: 18,
+        attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">地理院タイル</a>'
+      }
+    ).addTo(map);
   });
-      });
 
     // ---------------- ピン ----------------
     const group = L.featureGroup().addTo(map);
@@ -527,14 +518,15 @@
 
         // ★ 最初の1回だけ「最大ズーム」で中央へ
         if (!didZoomToLocate) {
-            const maxZ = Math.min(
-            (map.getMaxZoom ? map.getMaxZoom() : 19),
-            (osm?.options?.maxZoom ?? 19),
-            (gsi?.options?.maxZoom ?? 18)
-            );
-            map.setView(ll, Number.isFinite(maxZ) ? maxZ : 18, { animate: true });
+            const zs = [];
+            if (typeof map.getMaxZoom === 'function') zs.push(map.getMaxZoom());
+            if (osm?.options?.maxZoom != null)       zs.push(osm.options.maxZoom);
+            if (gsi?.options?.maxZoom != null)       zs.push(gsi.options.maxZoom);
+            const maxZ = zs.length ? Math.max(...zs) : 18; // gsi未準備でも18にフォールバック
+            map.setView(ll, maxZ, { animate: true });
             didZoomToLocate = true;
         }
+
 
         // 以降はフォローON時のみパン
         if (chkFollow.checked){
