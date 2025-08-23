@@ -74,12 +74,14 @@
 
     /* ログインパネル（未認証時に表示） */
     #loginPanel{
-      position:absolute; left:10px; top:10px; z-index:1001;
-      background:#fff; border:1px solid var(--border); border-radius:10px;
-      padding:12px; box-shadow:0 2px 6px rgba(0,0,0,.06); font-size:12px; max-width:320px;
+    position:absolute; left:10px; top:10px; z-index:1001;
+    background:transparent; border:0; padding:0; box-shadow:none;
     }
     #loginPanel button{
-      padding:6px 10px; border:1px solid var(--border); background:#fff; border-radius:6px; cursor:pointer;
+    font-size:12px;            /* 小さめ */
+    padding:4px 8px;           /* 小さめ */
+    border:1px solid var(--border);
+    background:#fff; border-radius:6px; cursor:pointer;
     }
   </style>
 </head>
@@ -90,9 +92,9 @@
     <div id="map" aria-label="録音と画像のサウンドマップ">
       <!-- 未認証時にだけ出すボックス -->
       <section id="loginPanel">
-        <p>記録機能を使うには管理者ログインが必要です。</p>
-        <button id="btnAdminLogin">管理者ログイン</button>
+        <button id="btnAdminLogin" aria-label="Admin login">Admin login</button>
       </section>
+      
 
       <!-- 管理者用の記録パネル（最初は隠す） -->
       <section id="recPanel" hidden>
