@@ -46,7 +46,7 @@
     .track-controls{
       position:absolute; right:10px; top:10px; z-index:1000;
       background:#fff; border:1px solid var(--border); border-radius:10px;
-      padding:10px; box-shadow:0 2px 6px rgba(0,0,0,.06); font-size:12px; min-width:260px;
+      padding:10px; box-shadow:0 2px 6px rgba(0,0,0,.06); font-size:12px; min-width:300px;
     }
     .track-controls h3{margin:0 0 6px; font-size:12px;}
     .row{display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:4px 0;}
@@ -94,7 +94,8 @@
         <div class="row">
           <input id="progress" class="grow" type="range" min="0" max="1000" value="0" step="1" />
         </div>
-        <div class="row" style="justify-content:flex-end">
+        <div class="row" style="justify-content:flex-end;gap:8px">
+          <button id="btnSave" disabled>保存</button>
           <button id="btnClear">クリア</button>
         </div>
       </div>
@@ -138,7 +139,7 @@
     // ---------------- 地図 ----------------
     const map = L.map('map', { zoomControl: true, attributionControl: true });
 
-    // ベース：OSM（常時表示。不要ならこのレイヤーごと削除OK）
+    // ベース：OSM（常時表示）
     const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>',
       maxZoom: 19
@@ -185,12 +186,13 @@
     }
     if (PINS.length) selectPost(0);
 
-    // ---------------- 位置記録 & 再生（音声連動なし） ----------------
+    // ---------------- 位置記録 & 再生 ----------------
     const btnStart = document.getElementById('btnStart');
     const btnStop  = document.getElementById('btnStop');
     const btnPlay  = document.getElementById('btnPlay');
     const btnPause = document.getElementById('btnPause');
     const btnClear = document.getElementById('btnClear');
+    const btnSave  = document.getElementById('btnSave');
     const recLenEl = document.getElementById('recLen');
     const playLenEl= document.getElementById('playLen');
     const progress = document.getElementById('progress');
@@ -204,7 +206,7 @@
     let progLine = null;   // 進捗パス（青）
     let headMarker = null; // 再生ヘッド（現在位置）
     let recTimerId = 0;    // 経過表示タイマー
-    let keepAliveId = 0;   // ★ 静止中でも点を打つ“キープアライブ”
+    let keepAliveId = 0;   // 静止中キープアライブ
 
     // 再生管理
     let playing = false;
@@ -221,14 +223,12 @@
       recLenEl.textContent = '00:00';
       durationMs = 0;
       startRecTimer();
-      startKeepAlive(); // ★ 追加
+      startKeepAlive();
 
-      // 最初の現在地を取得（即時）
       navigator.geolocation.getCurrentPosition(pos=>{
         pushSample(pos);
       }, err=>console.warn(err), {enableHighAccuracy:true, maximumAge:0, timeout:10000});
 
-      // 継続記録（移動がない端末では発火が少ないことがある）
       watchId = navigator.geolocation.watchPosition(pos=>{
         pushSample(pos);
       }, err=>console.warn(err), {enableHighAccuracy:true, maximumAge:0});
@@ -237,6 +237,7 @@
       btnStop.disabled = false;
       btnPlay.disabled = true;
       btnPause.disabled = true;
+      btnSave.disabled = true;
       progress.value = 0;
       playLenEl.textContent = '--:-- / --:--';
     });
@@ -246,7 +247,7 @@
       if (watchId != null) navigator.geolocation.clearWatch(watchId);
       watchId = null;
       stopRecTimer();
-      stopKeepAlive(); // ★ 追加
+      stopKeepAlive();
       btnStart.disabled = false;
       btnStop.disabled = true;
 
@@ -255,7 +256,6 @@
         return;
       }
       if (track.length === 1) {
-        // ★ 同一点の終端サンプルを追加して“2点”に
         const now = Date.now();
         const p0 = track[0];
         track.push({ lat: p0.lat, lng: p0.lng, t: now });
@@ -267,18 +267,17 @@
       recLenEl.textContent = fmt(durationMs/1000);
       playLenEl.textContent = `00:00 / ${fmt(durationMs/1000)}`;
 
-      // パス描画
       const latlngs = track.map(p=>[p.lat, p.lng]);
       fullLine = L.polyline(latlngs, {color:'#666', weight:4, opacity:0.5}).addTo(map);
       progLine = L.polyline([], {color: '#007aff', weight:5, opacity:1}).addTo(map);
       headMarker = L.circleMarker(latlngs[0], {radius:6, color:'#007aff', fillColor:'#fff', fillOpacity:1, weight:3}).addTo(map);
 
-      // 表示範囲調整
       const b = L.latLngBounds(latlngs);
       map.fitBounds(b.pad(0.2));
 
       btnPlay.disabled = false;
       btnPause.disabled = true;
+      btnSave.disabled = false; // ★ 保存できる
     });
 
     // ---- 再生
@@ -316,7 +315,7 @@
       if (watchId != null) navigator.geolocation.clearWatch(watchId);
       watchId = null;
       stopRecTimer();
-      stopKeepAlive(); // ★ 追加
+      stopKeepAlive();
       playing = false; if (rafId) cancelAnimationFrame(rafId);
 
       cleanupTrackLayers();
@@ -326,6 +325,7 @@
       btnStop.disabled = true;
       btnPlay.disabled = true;
       btnPause.disabled = true;
+      btnSave.disabled = true;
       recLenEl.textContent = '--:--';
       playLenEl.textContent = '--:-- / --:--';
       progress.value = 0;
@@ -356,19 +356,15 @@
     // ---- t(ms) 時点の位置まで“進捗パス”を描画
     function renderAt(t){
       if (!progLine || track.length<2) return;
-      // t に到達するまでの区間を集め、途中の点を補間
       const pts = [];
       for (let i=0;i<track.length-1;i++){
         const a = track[i], b = track[i+1];
         if (i===0) pts.push([a.lat,a.lng]);
-        if (t >= b.t - track[0].t) { // 区間をまるごと含む
+        if (t >= b.t - track[0].t) {
           pts.push([b.lat,b.lng]);
           continue;
         }
-        if (t <= a.t - track[0].t) { // まだこの区間に入っていない
-          break;
-        }
-        // 区間内：時間で線形補間
+        if (t <= a.t - track[0].t) { break; }
         const ta = a.t - track[0].t, tb = b.t - track[0].t;
         const ratio = (t - ta) / (tb - ta);
         const lat = a.lat + (b.lat - a.lat)*ratio;
@@ -401,11 +397,10 @@
       lastPushT = t;
       lastLatLng = ll;
 
-      // 記録中の経過表示
       recLenEl.textContent = fmt((t - t0)/1000);
     }
 
-    // ★ 静止中でも点を打つ“キープアライブ”（3秒以上更新が無ければ同座標で1点追加）
+    // 静止中でも点を打つ（3秒以上更新が無ければ同座標で1点追加）
     function startKeepAlive(){
       if (keepAliveId) return;
       keepAliveId = setInterval(()=>{
@@ -501,6 +496,88 @@
       console.warn('locate error:', err);
       if (err.code === 1) alert('位置情報の許可が必要です（ブラウザ設定を確認してください）');
     }
+
+    // ---------------- ここから：保存＆公開一覧の読み込み ----------------
+
+    // GeoJSON 化（[lng,lat,t] の LineString）
+    function buildGeoJSONFromTrack(track){
+      const coordinates = track.map(p => [p.lng, p.lat, p.t]);
+      return {
+        type: "Feature",
+        properties: {},
+        geometry: { type: "LineString", coordinates }
+      };
+    }
+
+    // 距離（m）
+    function calcDistanceM(geom){
+      try { return turf.length(geom, { units: "kilometers" }) * 1000; }
+      catch { return 0; }
+    }
+
+    // 保存
+    btnSave.addEventListener('click', async ()=>{
+      if (!track.length) return;
+      btnSave.disabled = true;
+
+      const geom = buildGeoJSONFromTrack(track);
+      const startedAt = new Date(track[0].t).toISOString();
+      const endedAt   = new Date(track[track.length-1].t).toISOString();
+      const distanceM = calcDistanceM(geom);
+
+      const payload = {
+        title: prompt("タイトル（空でOK）", "") || "Untitled",
+        started_at: startedAt,
+        ended_at: endedAt,
+        duration_sec: Math.round(durationMs/1000),
+        distance_m: Math.round(distanceM),
+        geom
+      };
+
+      const res = await fetch("/api/private/tracks", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.status === 403) {
+        alert("初回はログインが必要です。表示されるCloudflare Accessの画面で自分のメールで認証してください。");
+      }
+
+      if (!res.ok) {
+        const err = await res.text();
+        alert("保存に失敗しました: " + err);
+        btnSave.disabled = false;
+        return;
+      }
+      const json = await res.json();
+      alert("保存しました！ ID: " + json.id);
+      await loadAndDrawTracks(); // 公開一覧を反映
+    });
+
+    // 公開トラックを薄色で重ね描き
+    async function loadAndDrawTracks(){
+      try{
+        const res = await fetch("/api/public/tracks?limit=50");
+        const { tracks } = await res.json();
+        tracks.forEach((t, idx)=>{
+          drawTrackLight(t.id, Math.max(0.25, 1 - idx * 0.02)); // 新しいほど濃い
+        });
+      }catch(e){ console.warn(e); }
+    }
+
+    async function drawTrackLight(id, alpha){
+      try{
+        const r = await fetch(`/api/public/tracks/${id}`);
+        if (!r.ok) return;
+        const { geom } = await r.json();
+        const latlngs = geom.geometry.coordinates.map(c => [c[1], c[0]]);
+        L.polyline(latlngs, { color: `rgba(0,122,255,${alpha})`, weight: 3, opacity: 0.9 }).addTo(map);
+      }catch(e){ console.warn(e); }
+    }
+
+    // 起動時に公開トラックを描画
+    loadAndDrawTracks();
 
     // UIが地図操作を邪魔しないように
     L.DomEvent.disableClickPropagation(document.getElementById('trackCtrl'));
