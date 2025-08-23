@@ -1,3 +1,9 @@
+export async function onRequestPost({ env, request }) {
+  const jwt = request.headers.get("Cf-Access-Jwt-Assertion");
+  if (!jwt) return new Response("Unauthorized", { status: 401 });
+  // …以下、保存処理（既存のまま）
+}
+
 function bboxFromCoords(coords) {
     // coords: [[lng,lat,t], ...]
     let minLng=Infinity,minLat=Infinity,maxLng=-Infinity,maxLat=-Infinity;
