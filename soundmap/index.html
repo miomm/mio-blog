@@ -71,6 +71,16 @@
     }
     .locate-box button.active{ border-color:var(--accent); color:#fff; background:var(--accent); }
     .legend-dot{width:10px;height:10px;border-radius:50%;background:#007aff;border:2px solid #fff;box-shadow:0 0 0 2px #007aff;}
+
+    /* ログインパネル（未認証時に表示） */
+    #loginPanel{
+      position:absolute; left:10px; top:10px; z-index:1001;
+      background:#fff; border:1px solid var(--border); border-radius:10px;
+      padding:12px; box-shadow:0 2px 6px rgba(0,0,0,.06); font-size:12px; max-width:320px;
+    }
+    #loginPanel button{
+      padding:6px 10px; border:1px solid var(--border); background:#fff; border-radius:6px; cursor:pointer;
+    }
   </style>
 </head>
 <body>
@@ -78,43 +88,45 @@
 
   <div class="wrap">
     <div id="map" aria-label="録音と画像のサウンドマップ">
-    <!-- 未認証時にだけ出すボックス -->
-    <section id="loginPanel">
+      <!-- 未認証時にだけ出すボックス -->
+      <section id="loginPanel">
         <p>記録機能を使うには管理者ログインが必要です。</p>
         <button id="btnAdminLogin">管理者ログイン</button>
-    </section>
-    <!-- 管理者用の記録パネル（最初は隠す） -->
-      <!-- 位置記録・再生コントロール -->
-      <div class="track-controls" id="trackCtrl">
-        <h3>移動ログ</h3>
-        <div class="row">
-          <button id="btnStart" class="primary">記録開始</button>
-          <button id="btnStop" disabled>記録終了</button>
-          <span class="time" id="recLen">--:--</span>
-        </div>
-        <div class="row">
-          <button id="btnPlay" disabled>再生</button>
-          <button id="btnPause" disabled>一時停止</button>
-          <span class="time" id="playLen">--:-- / --:--</span>
-        </div>
-        <div class="row">
-          <input id="progress" class="grow" type="range" min="0" max="1000" value="0" step="1" />
-        </div>
-        <div class="row" style="justify-content:flex-end;gap:8px">
-          <button id="btnSave" disabled>保存</button>
-          <button id="btnClear">クリア</button>
-        </div>
-      </div>
-    </section>
+      </section>
 
-      <!-- 現在地コントロール -->
-      <div class="locate-box" id="locateBox">
-        <span class="legend-dot" aria-hidden="true"></span>
-        <button id="btnLocate" title="現在地の表示/非表示を切替">現在地</button>
-        <label style="display:flex;align-items:center;gap:4px;user-select:none;">
-          <input type="checkbox" id="chkFollow" checked /> フォロー
-        </label>
-      </div>
+      <!-- 管理者用の記録パネル（最初は隠す） -->
+      <section id="recPanel" hidden>
+        <!-- 位置記録・再生コントロール -->
+        <div class="track-controls" id="trackCtrl">
+          <h3>移動ログ</h3>
+          <div class="row">
+            <button id="btnStart" class="primary">記録開始</button>
+            <button id="btnStop" disabled>記録終了</button>
+            <span class="time" id="recLen">--:--</span>
+          </div>
+          <div class="row">
+            <button id="btnPlay" disabled>再生</button>
+            <button id="btnPause" disabled>一時停止</button>
+            <span class="time" id="playLen">--:-- / --:--</span>
+          </div>
+          <div class="row">
+            <input id="progress" class="grow" type="range" min="0" max="1000" value="0" step="1" />
+          </div>
+          <div class="row" style="justify-content:flex-end;gap:8px">
+            <button id="btnSave" disabled>保存</button>
+            <button id="btnClear">クリア</button>
+          </div>
+        </div>
+
+        <!-- 現在地コントロール -->
+        <div class="locate-box" id="locateBox">
+          <span class="legend-dot" aria-hidden="true"></span>
+          <button id="btnLocate" title="現在地の表示/非表示を切替">現在地</button>
+          <label style="display:flex;align-items:center;gap:4px;user-select:none;">
+            <input type="checkbox" id="chkFollow" checked /> フォロー
+          </label>
+        </div>
+      </section>
     </div>
 
     <aside class="panel" id="detail" aria-live="polite">
@@ -589,34 +601,35 @@
     // UIが地図操作を邪魔しないように
     L.DomEvent.disableClickPropagation(document.getElementById('trackCtrl'));
     L.DomEvent.disableClickPropagation(document.getElementById('locateBox'));
-  
+    L.DomEvent.disableClickPropagation(document.getElementById('loginPanel'));
+
+    // -------- 認証状態でUIを出し分け --------
+    const recPanel   = document.getElementById("recPanel");
+    const loginPanel = document.getElementById("loginPanel");
+
     async function refreshAuthUI() {
-  try {
-    const r = await fetch("/api/auth/status", { cache: "no-store" });
-    const { authenticated } = await r.json();
-    document.getElementById("recPanel").hidden   = !authenticated;
-    document.getElementById("loginPanel").hidden =  authenticated;
-  } catch (e) {
-    console.warn("auth status check failed", e);
-    // 失敗時は安全側（非表示）
-    document.getElementById("recPanel").hidden   = true;
-    document.getElementById("loginPanel").hidden = false;
-  }
-}
+      try {
+        const r = await fetch("/api/auth/status", { cache: "no-store" });
+        const { authenticated } = await r.json();
+        if (recPanel)   recPanel.hidden   = !authenticated;
+        if (loginPanel) loginPanel.hidden =  authenticated;
+      } catch (e) {
+        console.warn("auth status check failed", e);
+        if (recPanel)   recPanel.hidden   = true;
+        if (loginPanel) loginPanel.hidden = false;
+      }
+    }
 
-// 管理者ログインボタン：認証へ → 成功後はこのページに戻る
-document.addEventListener("click", (ev) => {
-  const btn = ev.target.closest("#btnAdminLogin");
-  if (!btn) return;
-  const ret = location.pathname + location.search;
-  location.href = "/api/private/login?return=" + encodeURIComponent(ret);
-});
+    // 管理者ログインボタン：認証へ → 成功後はこのページに戻る
+    document.addEventListener("click", (ev) => {
+      const btn = ev.target.closest("#btnAdminLogin");
+      if (!btn) return;
+      const ret = location.pathname + location.search;
+      location.href = "/api/private/login?return=" + encodeURIComponent(ret);
+    });
 
-// 初期表示時に認証状態で出し分け
-document.addEventListener("DOMContentLoaded", refreshAuthUI);
-
-// 保存成功/ログアウト等で状態が変わった時に呼びたい場合は適宜呼ぶ
-// 例：保存成功のアラート後や、ログアウトUIを作った時など
+    // 初期表示
+    document.addEventListener("DOMContentLoaded", refreshAuthUI);
   </script>
 </body>
 </html>
