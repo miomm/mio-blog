@@ -176,11 +176,25 @@
         const tmp = L.geoJSON(buffered);
         map.fitBounds(tmp.getBounds());
 
-        new L.TileLayer.BoundaryCanvas(
-          'https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png',
-          { boundary: buffered, maxZoom: 18,
-            attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">地理院タイル</a>' }
-        ).addTo(map);
+        let gsi; // ← 追加（上で宣言しておくと他でも参照できる）
+        fetch('japan_outer_hull.geojson')
+        .then(r => r.json())
+        .then(boundary => {
+            const BUFFER_KM = 23;
+            const buffered = turf.buffer(boundary, BUFFER_KM, { units: 'kilometers' });
+
+            const tmp = L.geoJSON(buffered);
+            map.fitBounds(tmp.getBounds());
+
+            gsi = new L.TileLayer.BoundaryCanvas(
+            'https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png',
+            {
+                boundary: buffered,
+                maxZoom: 18,
+                attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">地理院タイル</a>'
+            }
+            ).addTo(map);
+  });
       });
 
     // ---------------- ピン ----------------
@@ -467,6 +481,7 @@
     let locWatchId = null;
     let meMarker = null;
     let meCircle = null;
+    let didZoomToLocate = false; // 最初の測位で一度だけ最大ズーム
 
     btnLocate.addEventListener('click', ()=>{
       if (locWatchId == null) {
@@ -477,11 +492,12 @@
     });
 
     function startLocate(){
-      if (!navigator.geolocation) { alert('このブラウザは位置情報に対応していません'); return; }
-      btnLocate.classList.add('active');
-      locWatchId = navigator.geolocation.watchPosition(onLocate, onLocateError, {
-        enableHighAccuracy: true, maximumAge: 0, timeout: 15000
-      });
+        if (!navigator.geolocation) { alert('このブラウザは位置情報に対応していません'); return; }
+        btnLocate.classList.add('active');
+        didZoomToLocate = false; // ← 開始のたびにリセット
+        locWatchId = navigator.geolocation.watchPosition(onLocate, onLocateError, {
+            enableHighAccuracy: true, maximumAge: 0, timeout: 15000
+        });
     }
     function stopLocate(){
       if (locWatchId != null) navigator.geolocation.clearWatch(locWatchId);
@@ -491,27 +507,39 @@
       if (meCircle){ map.removeLayer(meCircle); meCircle = null; }
     }
     function onLocate(pos){
-      const lat = pos.coords.latitude, lng = pos.coords.longitude;
-      const acc = Math.max(5, Math.min(200, pos.coords.accuracy || 50)); // 5–200mに制限
-      const ll = L.latLng(lat, lng);
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        const acc = Math.max(5, Math.min(200, pos.coords.accuracy || 50)); // 5–200mに制限
+        const ll = L.latLng(lat, lng);
 
-      if (!meMarker){
-        meMarker = L.circleMarker(ll, {
-          radius: 6, color:'#007aff', weight:3, fillColor:'#fff', fillOpacity:1
-        }).addTo(map);
-      } else {
-        meMarker.setLatLng(ll);
-      }
-      if (!meCircle){
-        meCircle = L.circle(ll, { radius: acc, color:'#007aff', weight:1, opacity:0.5, fillOpacity:0.1 });
-        meCircle.addTo(map);
-      } else {
-        meCircle.setLatLng(ll); meCircle.setRadius(acc);
-      }
+        if (!meMarker){
+            meMarker = L.circleMarker(ll, {
+            radius: 6, color:'#007aff', weight:3, fillColor:'#fff', fillOpacity:1
+            }).addTo(map);
+        } else {
+            meMarker.setLatLng(ll);
+        }
+        if (!meCircle){
+            meCircle = L.circle(ll, { radius: acc, color:'#007aff', weight:1, opacity:0.5, fillOpacity:0.1 });
+            meCircle.addTo(map);
+        } else {
+            meCircle.setLatLng(ll); meCircle.setRadius(acc);
+        }
 
-      if (chkFollow.checked){
-        map.panTo(ll, { animate:true });
-      }
+        // ★ 最初の1回だけ「最大ズーム」で中央へ
+        if (!didZoomToLocate) {
+            const maxZ = Math.min(
+            (map.getMaxZoom ? map.getMaxZoom() : 19),
+            (osm?.options?.maxZoom ?? 19),
+            (gsi?.options?.maxZoom ?? 18)
+            );
+            map.setView(ll, Number.isFinite(maxZ) ? maxZ : 18, { animate: true });
+            didZoomToLocate = true;
+        }
+
+        // 以降はフォローON時のみパン
+        if (chkFollow.checked){
+            map.panTo(ll, { animate:true });
+        }
     }
     function onLocateError(err){
       console.warn('locate error:', err);
