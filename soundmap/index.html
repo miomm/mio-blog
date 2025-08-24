@@ -154,15 +154,14 @@
         </div>
       </div>
     </aside>
-    <!-- 管理者用（認証済みのみ表示） -->
+    <!--認証の有無に関わらず表示 -->
     <aside class="panel" id="myTracksPanel" hidden>
-      <h2>My Tracks</h2>
+      <h2 id="myTracksTitle">Tracks</h2>
       <div class="tools">
         <button id="btnRefreshTracks">Refresh</button>
       </div>
       <div id="myTracksList" aria-live="polite"></div>
     </aside>
-
   </div>
 
   <script>
@@ -664,33 +663,61 @@ fetch('japan_outer_hull.geojson')
     const myPanel = document.getElementById("myTracksPanel");
     const myList  = document.getElementById("myTracksList");
     const btnRefreshTracks = document.getElementById("btnRefreshTracks");
+    const myTitle = document.getElementById("myTracksTitle");
 
-    // 認証状態UIの出し分け（既存の refreshAuthUI に追記 or 置換）
     async function refreshAuthUI() {
       try {
         const r = await fetch("/api/auth/status", { cache: "no-store" });
         const { authenticated } = await r.json();
         isAuthed = !!authenticated;
 
-        // 記録パネルとログインパネル（既存）
-        if (document.getElementById("recPanel"))
-          document.getElementById("recPanel").hidden   = !isAuthed;
-        if (document.getElementById("loginPanel"))
-          document.getElementById("loginPanel").hidden =  isAuthed;
+        // 記録パネル / ログインボタン（既存の挙動）
+        const rec = document.getElementById("recPanel");
+        const log = document.getElementById("loginPanel");
+        if (rec) rec.hidden = !isAuthed;
+        if (log) log.hidden =  isAuthed;
 
-        // My Tracks（右パネル）
+        // 右パネル：認証の有無で中身を切り替え
         if (myPanel) {
-          myPanel.hidden = !isAuthed;
-          if (isAuthed) loadMyTracks();
+          myPanel.hidden = false; // ← どちらでも表示
+          myList.textContent = "Loading...";
+          if (isAuthed) {
+            if (myTitle) myTitle.textContent = "My Tracks";
+            await loadMyTracks();          // 管理者向け（公開/非公開/削除ボタンつき）
+          } else {
+            if (myTitle) myTitle.textContent = "Tracks";
+            await loadPublicTracksList();  // 未認証向け（Zoomだけ）
+          }
         }
       } catch (e) {
         console.warn("auth status check failed", e);
-        isAuthed = false;
-        if (document.getElementById("recPanel"))   document.getElementById("recPanel").hidden   = true;
-        if (document.getElementById("loginPanel")) document.getElementById("loginPanel").hidden = false;
-        if (myPanel) myPanel.hidden = true;
+        // 安全側：記録パネル非表示、ログインボタン表示、右パネルは公開一覧に
+        const rec = document.getElementById("recPanel");
+        const log = document.getElementById("loginPanel");
+        if (rec) rec.hidden = true;
+        if (log) log.hidden = false;
+        if (myPanel) {
+          myPanel.hidden = false;
+          if (myTitle) myTitle.textContent = "Tracks";
+          await loadPublicTracksList();
+        }
       }
     }
+    async function loadPublicTracksList(){
+      if (!myList) return;
+      myList.textContent = "Loading...";
+      try{
+        const r = await fetch("/api/public/tracks?limit=50", { cache: "no-store" });
+        if (!r.ok) { myList.textContent = "Error"; return; }
+        const { tracks } = await r.json();
+        if (!tracks.length) { myList.textContent = "No tracks"; return; }
+        myList.textContent = "";
+        tracks.forEach(t => addTrackRow(t, { viewer: true })); // ← viewerモード
+      }catch(e){
+        console.warn(e); myList.textContent = "Error";
+      }
+    }
+
 
     // 一覧取得
     async function loadMyTracks(){
@@ -708,10 +735,12 @@ fetch('japan_outer_hull.geojson')
       }
     }
 
-    function addTrackRow(t){
+    function addTrackRow(t, opts = {}){
+      const viewer = !!opts.viewer; // true=未認証ビューア用
       const row = document.createElement("div");
       row.className = "track-item";
       row.dataset.id = t.id;
+      if (t.bbox) row.dataset.bbox = JSON.stringify(t.bbox);
 
       const started = t.started_at ? new Date(t.started_at) : null;
       const title = started
@@ -721,14 +750,14 @@ fetch('japan_outer_hull.geojson')
       row.innerHTML = `
         <div class="track-title">${title}</div>
         <div style="justify-self:end;">
-          <span class="badge ${t.is_public ? 'pub' : 'prv'}">${t.is_public ? 'Public' : 'Private'}</span>
+          <span class="badge ${t.is_public ? 'pub' : 'prv'}">${viewer ? 'Public' : (t.is_public ? 'Public' : 'Private')}</span>
         </div>
         <div class="actions" style="grid-column:1 / -1;">
           <button data-act="zoom">Zoom</button>
-          ${t.is_public
+          ${viewer ? '' : (t.is_public
             ? '<button data-act="unpub">Unpublish</button>'
-            : '<button data-act="pub">Publish</button>'}
-          <button data-act="del">Delete</button>
+            : '<button data-act="pub">Publish</button>')}
+          ${viewer ? '' : '<button data-act="del">Delete</button>'}
         </div>
       `;
       myList.appendChild(row);
@@ -743,22 +772,21 @@ fetch('japan_outer_hull.geojson')
       if (!id) return;
 
       const act = btn.dataset.act;
+
+      // 共通：Zoom（bbox からズーム）
       if (act === "zoom") {
-        // bbox でズーム（非公開でもOK）
-        const item = row; // DOMからは bbox が取れないので API再取得
-        // 軽量化のため、行ごとの bbox は一度に扱わないので再フェッチ
-        // 簡易版：一覧の再取得 → 対象を検索
-        const r2 = await fetch("/api/private/tracks?limit=50", { cache: "no-store" });
-        const { tracks } = await r2.json();
-        const t = tracks.find(x => x.id === id);
-        if (t?.bbox) {
-          const [[minLng, minLat, maxLng, maxLat]] = [[t.bbox[0], t.bbox[1], t.bbox[2], t.bbox[3]]];
-          const b = L.latLngBounds([ [minLat, minLng], [maxLat, maxLng] ]);
+        const bbox = row.dataset.bbox ? JSON.parse(row.dataset.bbox) : null;
+        if (bbox && bbox.length === 4) {
+          const b = L.latLngBounds([ [bbox[1], bbox[0]], [bbox[3], bbox[2]] ]);
           map.fitBounds(b.pad(0.25));
         } else {
           alert("Bounds not available.");
         }
+        return;
       }
+
+      // ここから先は管理者専用
+      if (!isAuthed) return;
 
       if (act === "pub" || act === "unpub") {
         const is_public = act === "pub" ? 1 : 0;
@@ -768,9 +796,9 @@ fetch('japan_outer_hull.geojson')
           body: JSON.stringify({ is_public })
         });
         if (!res.ok) return alert("Failed to update");
-        // UI更新
         await loadMyTracks();
         await loadAndDrawPublicTracks();
+        return;
       }
 
       if (act === "del") {
@@ -779,11 +807,15 @@ fetch('japan_outer_hull.geojson')
         if (!res.ok) return alert("Failed to delete");
         await loadMyTracks();
         await loadAndDrawPublicTracks();
+        return;
       }
     });
 
+
     // Refresh
-    btnRefreshTracks?.addEventListener("click", loadMyTracks);
+    btnRefreshTracks?.addEventListener("click", ()=>{
+      if (isAuthed) loadMyTracks(); else loadPublicTracksList();
+    });
 
     // 保存成功後に一覧を最新化（既存の保存処理の最後に既に置いている行の直後に）
     async function afterSaved(id){
