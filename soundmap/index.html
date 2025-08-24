@@ -83,6 +83,17 @@
     border:1px solid var(--border);
     background:#fff; border-radius:6px; cursor:pointer;
     }
+    /* --- My Tracks パネル --- */
+    #myTracksPanel .tools { display:flex; gap:8px; align-items:center; }
+    #myTracksList { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+    .track-item { border:1px solid var(--border); border-radius:8px; padding:8px; display:grid; grid-template-columns:1fr auto; gap:6px; }
+    .track-title { font-weight:600; }
+    .badge { font-size:11px; padding:2px 6px; border-radius:999px; border:1px solid var(--border); }
+    .badge.pub { background:#e8f4ff; border-color:#cde6ff; }
+    .badge.prv { background:#f6f6f6; }
+    .actions { display:flex; gap:6px; }
+    .actions button { padding:4px 8px; border:1px solid var(--border); background:#fff; border-radius:6px; cursor:pointer; font-size:12px; }
+
   </style>
 </head>
 <body>
@@ -143,6 +154,15 @@
         </div>
       </div>
     </aside>
+    <!-- 管理者用（認証済みのみ表示） -->
+    <aside class="panel" id="myTracksPanel" hidden>
+      <h2>My Tracks</h2>
+      <div class="tools">
+        <button id="btnRefreshTracks">Refresh</button>
+      </div>
+      <div id="myTracksList" aria-live="polite"></div>
+    </aside>
+
   </div>
 
   <script>
@@ -165,6 +185,9 @@
       attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>',
       maxZoom: 19
     }).addTo(map);
+
+    // 公開トラック描画用のグループ（再読み込みで消して描き直す）
+    let publicGroup = L.layerGroup().addTo(map);
 
     let gsi = null;
 
@@ -567,7 +590,6 @@ fetch('japan_outer_hull.geojson')
       const distanceM = calcDistanceM(geom);
 
       const payload = {
-        title: prompt("タイトル（空でOK）", "") || "Untitled",
         started_at: startedAt,
         ended_at: endedAt,
         duration_sec: Math.round(durationMs/1000),
@@ -593,17 +615,17 @@ fetch('japan_outer_hull.geojson')
       }
       const json = await res.json();
       alert("保存しました！ ID: " + json.id);
-      await loadAndDrawTracks(); // 公開一覧を反映
+      await afterSaved(json.id); // ← 一覧＆公開レイヤをまとめて更新
     });
 
-    // 公開トラックを薄色で重ね描き
-    async function loadAndDrawTracks(){
+    async function loadAndDrawPublicTracks(){
       try{
-        const res = await fetch("/api/public/tracks?limit=50");
+        publicGroup.clearLayers(); // ← いったん全部消す
+        const res = await fetch("/api/public/tracks?limit=50", { cache: "no-store" });
         const { tracks } = await res.json();
-        tracks.forEach((t, idx)=>{
-          drawTrackLight(t.id, Math.max(0.25, 1 - idx * 0.02)); // 新しいほど濃い
-        });
+        for (let i = 0; i < tracks.length; i++) {
+          await drawTrackLight(tracks[i].id, Math.max(0.25, 1 - i * 0.02));
+        }
       }catch(e){ console.warn(e); }
     }
 
@@ -613,12 +635,12 @@ fetch('japan_outer_hull.geojson')
         if (!r.ok) return;
         const { geom } = await r.json();
         const latlngs = geom.geometry.coordinates.map(c => [c[1], c[0]]);
-        L.polyline(latlngs, { color: `rgba(0,122,255,${alpha})`, weight: 3, opacity: 0.9 }).addTo(map);
+        L.polyline(latlngs, { color: `rgba(0,122,255,${alpha})`, weight: 3, opacity: 0.9 }).addTo(publicGroup);
       }catch(e){ console.warn(e); }
     }
 
     // 起動時に公開トラックを描画
-    loadAndDrawTracks();
+    loadAndDrawPublicTracks();
 
     // UIが地図操作を邪魔しないように
     L.DomEvent.disableClickPropagation(document.getElementById('trackCtrl'));
@@ -629,19 +651,6 @@ fetch('japan_outer_hull.geojson')
     const recPanel   = document.getElementById("recPanel");
     const loginPanel = document.getElementById("loginPanel");
 
-    async function refreshAuthUI() {
-      try {
-        const r = await fetch("/api/auth/status", { cache: "no-store" });
-        const { authenticated } = await r.json();
-        if (recPanel)   recPanel.hidden   = !authenticated;
-        if (loginPanel) loginPanel.hidden =  authenticated;
-      } catch (e) {
-        console.warn("auth status check failed", e);
-        if (recPanel)   recPanel.hidden   = true;
-        if (loginPanel) loginPanel.hidden = false;
-      }
-    }
-
     // 管理者ログインボタン：認証へ → 成功後はこのページに戻る
     document.addEventListener("click", (ev) => {
       const btn = ev.target.closest("#btnAdminLogin");
@@ -649,6 +658,138 @@ fetch('japan_outer_hull.geojson')
       const ret = location.pathname + location.search;
       location.href = "/api/private/login?return=" + encodeURIComponent(ret);
     });
+
+    // ----- My Tracks（認証済みだけ表示） -----
+    let isAuthed = false; // 認証状態を持つ
+    const myPanel = document.getElementById("myTracksPanel");
+    const myList  = document.getElementById("myTracksList");
+    const btnRefreshTracks = document.getElementById("btnRefreshTracks");
+
+    // 認証状態UIの出し分け（既存の refreshAuthUI に追記 or 置換）
+    async function refreshAuthUI() {
+      try {
+        const r = await fetch("/api/auth/status", { cache: "no-store" });
+        const { authenticated } = await r.json();
+        isAuthed = !!authenticated;
+
+        // 記録パネルとログインパネル（既存）
+        if (document.getElementById("recPanel"))
+          document.getElementById("recPanel").hidden   = !isAuthed;
+        if (document.getElementById("loginPanel"))
+          document.getElementById("loginPanel").hidden =  isAuthed;
+
+        // My Tracks（右パネル）
+        if (myPanel) {
+          myPanel.hidden = !isAuthed;
+          if (isAuthed) loadMyTracks();
+        }
+      } catch (e) {
+        console.warn("auth status check failed", e);
+        isAuthed = false;
+        if (document.getElementById("recPanel"))   document.getElementById("recPanel").hidden   = true;
+        if (document.getElementById("loginPanel")) document.getElementById("loginPanel").hidden = false;
+        if (myPanel) myPanel.hidden = true;
+      }
+    }
+
+    // 一覧取得
+    async function loadMyTracks(){
+      if (!myList) return;
+      myList.textContent = "Loading...";
+      try{
+        const r = await fetch("/api/private/tracks?limit=50", { cache: "no-store" });
+        if (!r.ok) { myList.textContent = "Error"; return; }
+        const { tracks } = await r.json();
+        if (!tracks.length) { myList.textContent = "No tracks"; return; }
+        myList.textContent = "";
+        tracks.forEach(addTrackRow);
+      }catch(e){
+        console.warn(e); myList.textContent = "Error";
+      }
+    }
+
+    function addTrackRow(t){
+      const row = document.createElement("div");
+      row.className = "track-item";
+      row.dataset.id = t.id;
+
+      const started = t.started_at ? new Date(t.started_at) : null;
+      const title = started
+        ? started.toLocaleString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
+        : t.id;
+
+      row.innerHTML = `
+        <div class="track-title">${title}</div>
+        <div style="justify-self:end;">
+          <span class="badge ${t.is_public ? 'pub' : 'prv'}">${t.is_public ? 'Public' : 'Private'}</span>
+        </div>
+        <div class="actions" style="grid-column:1 / -1;">
+          <button data-act="zoom">Zoom</button>
+          ${t.is_public
+            ? '<button data-act="unpub">Unpublish</button>'
+            : '<button data-act="pub">Publish</button>'}
+          <button data-act="del">Delete</button>
+        </div>
+      `;
+      myList.appendChild(row);
+    }
+
+    // クリック（委任）
+    myList?.addEventListener("click", async (ev)=>{
+      const btn = ev.target.closest("button");
+      if (!btn) return;
+      const row = btn.closest(".track-item");
+      const id  = row?.dataset.id;
+      if (!id) return;
+
+      const act = btn.dataset.act;
+      if (act === "zoom") {
+        // bbox でズーム（非公開でもOK）
+        const item = row; // DOMからは bbox が取れないので API再取得
+        // 軽量化のため、行ごとの bbox は一度に扱わないので再フェッチ
+        // 簡易版：一覧の再取得 → 対象を検索
+        const r2 = await fetch("/api/private/tracks?limit=50", { cache: "no-store" });
+        const { tracks } = await r2.json();
+        const t = tracks.find(x => x.id === id);
+        if (t?.bbox) {
+          const [[minLng, minLat, maxLng, maxLat]] = [[t.bbox[0], t.bbox[1], t.bbox[2], t.bbox[3]]];
+          const b = L.latLngBounds([ [minLat, minLng], [maxLat, maxLng] ]);
+          map.fitBounds(b.pad(0.25));
+        } else {
+          alert("Bounds not available.");
+        }
+      }
+
+      if (act === "pub" || act === "unpub") {
+        const is_public = act === "pub" ? 1 : 0;
+        const res = await fetch(`/api/private/tracks/${id}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ is_public })
+        });
+        if (!res.ok) return alert("Failed to update");
+        // UI更新
+        await loadMyTracks();
+        await loadAndDrawPublicTracks();
+      }
+
+      if (act === "del") {
+        if (!confirm("Delete this track?")) return;
+        const res = await fetch(`/api/private/tracks/${id}`, { method: "DELETE" });
+        if (!res.ok) return alert("Failed to delete");
+        await loadMyTracks();
+        await loadAndDrawPublicTracks();
+      }
+    });
+
+    // Refresh
+    btnRefreshTracks?.addEventListener("click", loadMyTracks);
+
+    // 保存成功後に一覧を最新化（既存の保存処理の最後に既に置いている行の直後に）
+    async function afterSaved(id){
+      await loadAndDrawPublicTracks();
+      if (isAuthed) await loadMyTracks();
+    }
 
     // 初期表示
     document.addEventListener("DOMContentLoaded", refreshAuthUI);
