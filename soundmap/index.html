@@ -28,15 +28,10 @@
 
     .panel{border:1px solid var(--border);background:#fff;padding:12px;display:flex;flex-direction:column;gap:10px;border-radius:8px;}
     .panel h2{font-size:14px;margin:0 0 6px;font-weight:bold;color:var(--text);}
-    .post{display:grid;grid-template-columns:120px 1fr;gap:10px;align-items:start;}
-    .post img{width:120px;height:auto;border:1px solid var(--border);display:block;background:#f5f5f5;}
-    .meta{font-size:12px;line-height:1.6;color:var(--text);}
 
     @media (max-width:900px){
       .wrap{grid-template-columns:1fr;}
       #map{height:55vh;}
-      .post{grid-template-columns:1fr;}
-      .post img{width:100%;}
     }
 
     .leaflet-marker-icon{filter:grayscale(100%);}
@@ -141,19 +136,6 @@
         </div>
       </section>
     </div>
-
-    <aside class="panel" id="detail" aria-live="polite">
-      <h2>選択中の投稿</h2>
-      <div class="post" id="post">
-        <img id="post-img" alt="選択中の画像のプレビュー" />
-        <div class="meta">
-          <div id="post-title" style="font-weight:600;">（ピンを選択してください）</div>
-          <div id="post-date"></div>
-          <audio id="post-audio" controls preload="none" style="width:100%;margin:6px 0 2px;"></audio>
-          <div id="post-caption"></div>
-        </div>
-      </div>
-    </aside>
     <!--認証の有無に関わらず表示 -->
     <aside class="panel" id="myTracksPanel" hidden>
       <h2 id="myTracksTitle">Tracks</h2>
@@ -163,19 +145,7 @@
       <div id="myTracksList" aria-live="polite"></div>
     </aside>
   </div>
-
   <script>
-    // ---------------- 投稿データ（サンプル） ----------------
-    const PINS = [
-      { id: 'tokyo-station', title: '東京駅の朝',
-        lat: 35.681236, lng: 139.767125,
-        image: './assets/img/sample1.jpg',
-        audio: './assets/audio/sample1.wav',
-        date: '2025-08-01',
-        caption: '始発前の構内で、低い環境音と通気音。'
-      }
-    ];
-
     // ---------------- 地図 ----------------
     const map = L.map('map', { zoomControl: true, attributionControl: true });
 
@@ -209,31 +179,6 @@ fetch('japan_outer_hull.geojson')
       }
     ).addTo(map);
   });
-
-    // ---------------- ピン ----------------
-    const group = L.featureGroup().addTo(map);
-    const markers = [];
-    PINS.forEach((p, i) => {
-      const m = L.marker([p.lat, p.lng]).addTo(group);
-      m.on('click', () => selectPost(i, true));
-      markers.push(m);
-    });
-
-    function selectPost(index, fly=false){
-      const p = PINS[index];
-      if (!p) return;
-      document.getElementById('post-img').src = p.image || '';
-      document.getElementById('post-title').textContent = p.title || '';
-      document.getElementById('post-date').textContent = p.date ? new Date(p.date).toLocaleDateString('ja-JP') : '';
-      document.getElementById('post-caption').textContent = p.caption || '';
-      const audioEl = document.getElementById('post-audio');
-      audioEl.src = p.audio || ''; audioEl.load();
-      if (markers[index] && fly){
-        map.flyTo(markers[index].getLatLng(), Math.max(map.getZoom(), 13), { duration: 0.6 });
-      }
-    }
-    if (PINS.length) selectPost(0);
-
     // ---------------- 位置記録 & 再生 ----------------
     const btnStart = document.getElementById('btnStart');
     const btnStop  = document.getElementById('btnStop');
