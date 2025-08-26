@@ -301,7 +301,7 @@ fetch('japan_outer_hull.geojson')
       btnStop.disabled = true;
 
       if (track.length === 0) {
-        alert('位置データが取得できませんでした（権限やHTTPSを確認）');
+        alert('位置データが取得できませんでした。No location points were captured.');
         return;
       }
       if (track.length === 1) {
