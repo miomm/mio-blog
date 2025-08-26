@@ -122,7 +122,6 @@
           </div>
           <div class="row" style="justify-content:flex-end;gap:8px">
             <button id="btnSave" disabled>保存</button>
-            <button id="btnClear">クリア</button>
           </div>
         </div>
 
@@ -184,7 +183,6 @@ fetch('japan_outer_hull.geojson')
     const btnStop  = document.getElementById('btnStop');
     const btnPlay  = document.getElementById('btnPlay');
     const btnPause = document.getElementById('btnPause');
-    const btnClear = document.getElementById('btnClear');
     const btnSave  = document.getElementById('btnSave');
     const recLenEl = document.getElementById('recLen');
     const playLenEl= document.getElementById('playLen');
@@ -234,7 +232,65 @@ fetch('japan_outer_hull.geojson')
       progress.value = 0;
       playLenEl.textContent = '--:-- / --:--';
     });
+    // ---- 記録開始
+    btnStart.addEventListener('click', async ()=>{
+      // 既存データ/描画が残っているなら確認
+      const hasExisting =
+        (track && track.length > 0) || fullLine || progLine || headMarker;
+      if (hasExisting) {
+        const ok = confirm("Start a new recording? The current path will be cleared.");
+        if (!ok) return; // キャンセルで中断
 
+        // 念のため測位やタイマーを停止
+        if (watchId != null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+        stopRecTimer();
+        stopKeepAlive();
+        playing = false; if (rafId) cancelAnimationFrame(rafId);
+
+        // 既存表示と状態をクリア
+        cleanupTrackLayers();
+        track = [];
+        durationMs = 0;
+        progress.value = 0;
+        progress.max = 1000;
+        recLenEl.textContent = '--:--';
+        playLenEl.textContent = '--:-- / --:--';
+      }
+
+      if (!navigator.geolocation) {
+        alert('このブラウザは位置情報に対応していません');
+        return;
+      }
+
+      // 新規記録の初期化
+      track = [];
+      lastPushT = 0;      // 既存の変数（なければ上部で let lastPushT = 0; を宣言）
+      lastLatLng = null;  // 既存の変数（なければ上部で let lastLatLng = null; を宣言）
+      t0 = Date.now();
+      recLenEl.textContent = '00:00';
+      durationMs = 0;
+      startRecTimer();
+      startKeepAlive();
+
+      // 最初の1点をすぐ取得
+      navigator.geolocation.getCurrentPosition(pos=>{
+        pushSample(pos);
+      }, err=>console.warn(err), {enableHighAccuracy:true, maximumAge:0, timeout:10000});
+
+      // 継続測位
+      watchId = navigator.geolocation.watchPosition(pos=>{
+        pushSample(pos);
+      }, err=>console.warn(err), {enableHighAccuracy:true, maximumAge:0});
+
+      // ボタン状態
+      btnStart.disabled = true;
+      btnStop.disabled = false;
+      btnPlay.disabled = true;
+      btnPause.disabled = true;
+      btnSave.disabled = true;
+      progress.value = 0;
+      playLenEl.textContent = '--:-- / --:--';
+    });
     // ---- 記録終了
     btnStop.addEventListener('click', ()=>{
       if (watchId != null) navigator.geolocation.clearWatch(watchId);
@@ -301,28 +357,6 @@ fetch('japan_outer_hull.geojson')
       const t = Number(progress.value);
       renderAt(t);
       playLenEl.textContent = `${fmt(t/1000)} / ${fmt(durationMs/1000)}`;
-    });
-
-    // ---- クリア
-    btnClear.addEventListener('click', ()=>{
-      if (watchId != null) navigator.geolocation.clearWatch(watchId);
-      watchId = null;
-      stopRecTimer();
-      stopKeepAlive();
-      playing = false; if (rafId) cancelAnimationFrame(rafId);
-
-      cleanupTrackLayers();
-      track = [];
-      durationMs = 0;
-      btnStart.disabled = false;
-      btnStop.disabled = true;
-      btnPlay.disabled = true;
-      btnPause.disabled = true;
-      btnSave.disabled = true;
-      recLenEl.textContent = '--:--';
-      playLenEl.textContent = '--:-- / --:--';
-      progress.value = 0;
-      progress.max = 1000;
     });
 
     // ---- 毎フレーム進める
