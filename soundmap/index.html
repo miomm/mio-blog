@@ -88,7 +88,12 @@
     .badge.prv { background:#f6f6f6; }
     .actions { display:flex; gap:6px; }
     .actions button { padding:4px 8px; border:1px solid var(--border); background:#fff; border-radius:6px; cursor:pointer; font-size:12px; }
-
+    /* --- Tracks 行内のプレイヤー --- */
+    .track-item .player{ margin-top:8px; padding-top:6px; border-top:1px solid var(--border); }
+    .track-item .controls{ display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+    .track-item .controls button{ padding:4px 8px; border:1px solid var(--border); background:#fff; border-radius:6px; font-size:12px; cursor:pointer; }
+    .track-item .time{ font-size:12px; opacity:.8; min-width:120px; }
+    .track-item input[type="range"]{ width:100%; }
   </style>
 </head>
 <body>
