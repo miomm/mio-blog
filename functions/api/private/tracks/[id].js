@@ -29,4 +29,22 @@ export async function onRequestPatch({ env, request, params }) {
       headers: { "content-type": "application/json" }
     });
   }
+  // GET /api/private/tracks/:id  （認証必須：自分用の再生/ズームに使う）
+    export async function onRequestGet({ env, request, params }) {
+        const jwt = request.headers.get("Cf-Access-Jwt-Assertion");
+        if (!jwt) return new Response("Unauthorized", { status: 401 });
+    
+        const id = params.id;
+        const row = await env.DB.prepare(`SELECT geom_json FROM tracks WHERE id = ? LIMIT 1`)
+        .bind(id).first();
+    
+        if (!row) return new Response(JSON.stringify({ error: "not found" }), {
+        status: 404, headers: { "content-type": "application/json" }
+        });
+    
+        return new Response(JSON.stringify({ geom: JSON.parse(row.geom_json) }), {
+        headers: { "content-type": "application/json", "cache-control": "no-store" }
+        });
+    }
+  
   

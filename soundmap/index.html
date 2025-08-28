@@ -159,6 +159,35 @@
       maxZoom: 19
     }).addTo(map);
 
+    // 再生表示用オーバーレイ（任意のトラックを再生するときに使う）
+    const viewGroup = L.layerGroup().addTo(map);
+    let viewFull = null, viewProg = null, viewHead = null;
+    let activeRowId = null;
+
+    // 実測スピード再生で使う状態
+    let viewPlaying = false, viewRAF = 0;
+    let viewStartWall = 0, viewStartT = 0;    // 壁時計と、再生開始時のトラック内時刻(ms)
+    let viewDurMs = 0;                        // トラック全体の長さ(ms)
+    let viewLatLngs = [];                     // [[lat,lng], ...]
+    let viewTimes = [];                       // 各点の時刻(ms, 先頭を0に正規化）
+    let viewHasTimes = false;                 // times が本当にあったか
+    let viewCum = [];                         // 距離の累積（見栄え用）
+    let viewTotal = 0;
+
+    function cleanupViewLayers(){
+      viewPlaying = false;
+      if (viewRAF) cancelAnimationFrame(viewRAF); viewRAF = 0;
+      viewGroup.clearLayers();
+      viewFull = viewProg = viewHead = null;
+      activeRowId = null;
+      viewLatLngs = [];
+      viewTimes = [];
+      viewCum = [];
+      viewTotal = 0;
+      viewDurMs = 0;
+      viewHasTimes = false;
+    }
+
     // 公開トラック描画用のグループ（再読み込みで消して描き直す）
     let publicGroup = L.layerGroup().addTo(map);
 
@@ -212,38 +241,11 @@ fetch('japan_outer_hull.geojson')
 
     // ---- 記録開始
     btnStart.addEventListener('click', async ()=>{
-      if (!navigator.geolocation) { alert('このブラウザは位置情報に対応していません'); return; }
-      cleanupTrackLayers();
-      track = [];
-      t0 = Date.now();
-      recLenEl.textContent = '00:00';
-      durationMs = 0;
-      startRecTimer();
-      startKeepAlive();
-
-      navigator.geolocation.getCurrentPosition(pos=>{
-        pushSample(pos);
-      }, err=>console.warn(err), {enableHighAccuracy:true, maximumAge:0, timeout:10000});
-
-      watchId = navigator.geolocation.watchPosition(pos=>{
-        pushSample(pos);
-      }, err=>console.warn(err), {enableHighAccuracy:true, maximumAge:0});
-
-      btnStart.disabled = true;
-      btnStop.disabled = false;
-      btnPlay.disabled = true;
-      btnPause.disabled = true;
-      btnSave.disabled = true;
-      progress.value = 0;
-      playLenEl.textContent = '--:-- / --:--';
-    });
-    // ---- 記録開始
-    btnStart.addEventListener('click', async ()=>{
       // 既存データ/描画が残っているなら確認
       const hasExisting =
         (track && track.length > 0) || fullLine || progLine || headMarker;
       if (hasExisting) {
-        const ok = confirm("Start a new recording? The current path will be cleared.");
+        const ok = confirm("リセットしてやり直しますか？Start a new recording? The current path will be cleared.");
         if (!ok) return; // キャンセルで中断
 
         // 念のため測位やタイマーを停止
@@ -720,11 +722,13 @@ fetch('japan_outer_hull.geojson')
     }
 
     function addTrackRow(t, opts = {}){
-      const viewer = !!opts.viewer; // true=未認証ビューア用
+      const viewer = !!opts.viewer; // true=未認証の公開一覧
       const row = document.createElement("div");
       row.className = "track-item";
       row.dataset.id = t.id;
       if (t.bbox) row.dataset.bbox = JSON.stringify(t.bbox);
+      row.dataset.public = viewer ? "1" : (t.is_public ? "1" : "0");
+      row.dataset.duration = String(t.duration_sec || 0);
 
       const started = t.started_at ? new Date(t.started_at) : null;
       const title = started
@@ -734,7 +738,9 @@ fetch('japan_outer_hull.geojson')
       row.innerHTML = `
         <div class="track-title">${title}</div>
         <div style="justify-self:end;">
-          <span class="badge ${t.is_public ? 'pub' : 'prv'}">${viewer ? 'Public' : (t.is_public ? 'Public' : 'Private')}</span>
+          <span class="badge ${viewer ? 'pub' : (t.is_public ? 'pub' : 'prv')}">
+            ${viewer ? 'Public' : (t.is_public ? 'Public' : 'Private')}
+          </span>
         </div>
         <div class="actions" style="grid-column:1 / -1;">
           <button data-act="zoom">Zoom</button>
@@ -742,6 +748,15 @@ fetch('japan_outer_hull.geojson')
             ? '<button data-act="unpub">Unpublish</button>'
             : '<button data-act="pub">Publish</button>')}
           ${viewer ? '' : '<button data-act="del">Delete</button>'}
+        </div>
+        <!-- 行内プレイヤー（Zoom時に表示） -->
+        <div class="player" hidden>
+          <div class="controls">
+            <button data-act="play">Play</button>
+            <button data-act="stop">Stop</button>
+            <span class="time" data-role="time">00:00 / 00:00</span>
+          </div>
+          <input type="range" min="0" max="1000" value="0" step="100" data-role="seek" />
         </div>
       `;
       myList.appendChild(row);
@@ -757,19 +772,44 @@ fetch('japan_outer_hull.geojson')
 
       const act = btn.dataset.act;
 
-      // 共通：Zoom（bbox からズーム）
+      // 共通: Zoom（プレイヤーを開いてズーム＋トラック読み込み）
       if (act === "zoom") {
+        // 他行のプレイヤーを畳む
+        document.querySelectorAll(".track-item .player").forEach(el=>{
+          if (el !== row.querySelector(".player")) el.hidden = true;
+        });
+        // この行のプレイヤーを開く
+        const player = row.querySelector(".player");
+        if (player) player.hidden = false;
+
+        // bbox でズーム
         const bbox = row.dataset.bbox ? JSON.parse(row.dataset.bbox) : null;
         if (bbox && bbox.length === 4) {
           const b = L.latLngBounds([ [bbox[1], bbox[0]], [bbox[3], bbox[2]] ]);
           map.fitBounds(b.pad(0.25));
-        } else {
-          alert("Bounds not available.");
         }
+
+        // トラックを読み込んで再生準備（実測スピード対応）
+        await prepareViewForRow(row);
         return;
       }
 
-      // ここから先は管理者専用
+      // 再生：行内プレイヤー
+      if (act === "play") {
+        if (row.dataset.id !== activeRowId) {
+          await prepareViewForRow(row);
+        }
+        startViewPlayback();
+        return;
+      }
+
+      // 停止：行内プレイヤー
+      if (act === "stop") {
+        stopViewPlayback(true); // 先頭に戻す
+        return;
+      }
+
+      // ここから先は管理者専用（公開/非公開/削除）
       if (!isAuthed) return;
 
       if (act === "pub" || act === "unpub") {
@@ -795,6 +835,17 @@ fetch('japan_outer_hull.geojson')
       }
     });
 
+    // シーク（行内の range）
+    myList?.addEventListener("input", (ev)=>{
+      const rng = ev.target.closest('input[type="range"][data-role="seek"]');
+      if (!rng) return;
+      const row = rng.closest(".track-item");
+      if (!row || row.dataset.id !== activeRowId) return;
+      // シーク中は一旦停止して、その位置を表示
+      stopViewPlayback(false);
+      const ms = Number(rng.value);
+      updateViewAt(ms);
+    });
 
     // Refresh
     btnRefreshTracks?.addEventListener("click", ()=>{
@@ -809,6 +860,157 @@ fetch('japan_outer_hull.geojson')
 
     // 初期表示
     document.addEventListener("DOMContentLoaded", refreshAuthUI);
+    async function prepareViewForRow(row){
+  activeRowId = row.dataset.id;
+  const isPub = row.dataset.public === "1";
+
+  // 1) トラックを取得（座標＋タイムスタンプ）
+  const { latlngs, timesMs, durationMs } = await fetchTrackData(activeRowId, isPub);
+  if (!latlngs || latlngs.length === 0) { alert("Failed to load track."); return; }
+
+  // 2) times の正規化（0 起点）。無い時はフォールバックを作る
+  viewHasTimes = Array.isArray(timesMs) && timesMs.length === latlngs.length;
+  let times = [];
+  if (viewHasTimes) {
+    const raw = timesMs.map(v => (typeof v === 'number' ? v : Date.parse(v)));
+    const base = isFinite(raw[0]) ? raw[0] : 0;
+    times = raw.map(v => isFinite(v) ? (v - base) : 0);
+  } else {
+    // フォールバック：距離に比例させて時間を割り当て
+    const durMs = Math.max(
+      1,
+      (Number(row.dataset.duration || "0") * 1000) || (latlngs.length - 1) * 1000
+    );
+    const cum = [0];
+    for (let i=1;i<latlngs.length;i++){
+      const d = map.distance(latlngs[i-1], latlngs[i]);
+      cum[i] = cum[i-1] + d;
+    }
+    const total = cum[cum.length-1] || 1;
+    times = cum.map(x => Math.round(durMs * (x/total)));
+  }
+
+  // 3) 距離累積（見栄え）
+  const cum = [0];
+  for (let i=1;i<latlngs.length;i++){
+    cum[i] = cum[i-1] + map.distance(latlngs[i-1], latlngs[i]);
+  }
+
+  // 4) 表示要素を再作成
+  cleanupViewLayers();
+  viewLatLngs = latlngs;
+  viewTimes   = times;
+  viewCum     = cum;
+  viewTotal   = cum[cum.length-1];
+  viewDurMs   = Math.max(1, times[times.length-1] ?? durationMs ?? 1);
+
+  viewFull = L.polyline(viewLatLngs, { color:'#666', weight:4, opacity:0.5 }).addTo(viewGroup);
+  viewProg = L.polyline([], { color:'#007aff', weight:5, opacity:1 }).addTo(viewGroup);
+  viewHead = L.circleMarker(viewLatLngs[0], {radius:6, color:'#007aff', fillColor:'#fff', fillOpacity:1, weight:3}).addTo(viewGroup);
+
+  // 5) 行内プレイヤーの初期化
+  const timeEl = row.querySelector('.time[data-role="time"]');
+  const seekEl = row.querySelector('input[type="range"][data-role="seek"]');
+  if (seekEl){ seekEl.max = String(Math.max(1, viewDurMs)); seekEl.value = "0"; }
+  if (timeEl){ timeEl.textContent = `00:00 / ${fmt(viewDurMs/1000)}`; }
+
+  // 0ms に反映
+  updateViewAt(0);
+}
+
+async function fetchTrackData(id, isPublic){
+  const url = isPublic ? `/api/public/tracks/${id}` : `/api/private/tracks/${id}`;
+  const r = await fetch(url, { cache: 'no-store' });
+  if (!r.ok) return { latlngs:null, timesMs:null, durationMs:0 };
+  const { geom } = await r.json();
+
+  // GeoJSON LineString
+  const coords = geom?.geometry?.coordinates || [];
+  // [lng,lat,(time?)] → [lat,lng] と time(ms) へ
+  const latlngs = [];
+  const timesMs = [];
+  for (const c of coords) {
+    latlngs.push([c[1], c[0]]);
+    if (c.length >= 3) timesMs.push(c[2]); // ← 保存時に入れている「絶対ms」を使用
+  }
+
+  // 予備：properties.times / timestamps / duration_ms（あれば使えるように）
+  const props = geom?.properties || {};
+  if (!timesMs.length && Array.isArray(props.times)) {
+    timesMs.push(...props.times);
+  } else if (!timesMs.length && Array.isArray(props.timestamps)) {
+    timesMs.push(...props.timestamps);
+  }
+  const durationMs = Number.isFinite(props.duration_ms) ? props.duration_ms : 0;
+
+  return { latlngs, timesMs, durationMs };
+}
+
+function startViewPlayback(){
+  if (!viewLatLngs || viewLatLngs.length < 2) return;
+  if (viewPlaying) return;
+  viewPlaying = true;
+  viewStartWall = performance.now();
+
+  // 現在のシーク位置から再開
+  const row = document.querySelector(`.track-item[data-id="${activeRowId}"]`);
+  const seekEl = row?.querySelector('input[type="range"][data-role="seek"]');
+  viewStartT = seekEl ? Number(seekEl.value) : 0;
+
+  tickView();
+}
+
+function stopViewPlayback(resetToZero){
+  if (viewRAF) cancelAnimationFrame(viewRAF);
+  viewRAF = 0; viewPlaying = false;
+  if (resetToZero) updateViewAt(0);
+}
+
+function tickView(){
+  if (!viewPlaying) return;
+  const now = performance.now();
+  const elapsed = now - viewStartWall;
+  const t = viewStartT + elapsed;
+  updateViewAt(t);
+  if (t >= viewDurMs) { stopViewPlayback(true); return; }
+  viewRAF = requestAnimationFrame(tickView);
+}
+
+function updateViewAt(ms){
+  // 0..viewDurMs の範囲に収める
+  const t = Math.max(0, Math.min(viewDurMs, ms));
+
+  // 時間列に基づく補間（実測スピード）
+  let idx = 0;
+  while (idx < viewTimes.length - 1 && viewTimes[idx+1] < t) idx++;
+
+  const tA = viewTimes[idx];
+  const tB = viewTimes[Math.min(idx+1, viewTimes.length-1)];
+  const a  = viewLatLngs[idx];
+  const b  = viewLatLngs[Math.min(idx+1, viewLatLngs.length-1)];
+
+  const span = Math.max(1, tB - tA); // 0割防止
+  const segF = Math.max(0, Math.min(1, (t - tA) / span));
+  const p = L.latLng(
+    a.lat + (b.lat - a.lat) * segF,
+    a.lng + (b.lng - a.lng) * segF
+  );
+
+  // ライン更新（見栄え：進捗は距離ベースでスムーズに伸ばす）
+  const upto = viewLatLngs.slice(0, idx+1);
+  upto.push(p);
+  viewProg.setLatLngs(upto);
+  viewHead.setLatLng(p);
+
+  // 行内 UI
+  const row = document.querySelector(`.track-item[data-id="${activeRowId}"]`);
+  const timeEl = row?.querySelector('.time[data-role="time"]');
+  const seekEl = row?.querySelector('input[type="range"][data-role="seek"]');
+  if (seekEl) seekEl.value = String(Math.round(t));
+  if (timeEl) timeEl.textContent = `${fmt((t/1000)||0)} / ${fmt((viewDurMs/1000)||0)}`;
+}
+ 
+
   </script>
 </body>
 </html>
