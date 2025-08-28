@@ -179,7 +179,6 @@
       if (viewRAF) cancelAnimationFrame(viewRAF); viewRAF = 0;
       viewGroup.clearLayers();
       viewFull = viewProg = viewHead = null;
-      activeRowId = null;
       viewLatLngs = [];
       viewTimes = [];
       viewCum = [];
@@ -187,6 +186,7 @@
       viewDurMs = 0;
       viewHasTimes = false;
     }
+
 
     // 公開トラック描画用のグループ（再読み込みで消して描き直す）
     let publicGroup = L.layerGroup().addTo(map);
@@ -861,8 +861,8 @@ fetch('japan_outer_hull.geojson')
     // 初期表示
     document.addEventListener("DOMContentLoaded", refreshAuthUI);
     async function prepareViewForRow(row){
-  activeRowId = row.dataset.id;
-  const isPub = row.dataset.public === "1";
+      activeRowId = row.dataset.id;
+      const isPub = row.dataset.public === "1";
 
   // 1) トラックを取得（座標＋タイムスタンプ）
   const { latlngs, timesMs, durationMs } = await fetchTrackData(activeRowId, isPub);
@@ -986,19 +986,32 @@ function updateViewAt(ms){
 
   const tA = viewTimes[idx];
   const tB = viewTimes[Math.min(idx+1, viewTimes.length-1)];
-  const a  = viewLatLngs[idx];
-  const b  = viewLatLngs[Math.min(idx+1, viewLatLngs.length-1)];
+
+  const a = viewLatLngs[idx];
+  const b = viewLatLngs[Math.min(idx+1, viewLatLngs.length-1)];
+
+  // a,b が [lat,lng] 配列か、LatLngオブジェクトかに対応
+  const aLat = Array.isArray(a) ? Number(a[0]) : Number(a?.lat);
+  const aLng = Array.isArray(a) ? Number(a[1]) : Number(a?.lng);
+  const bLat = Array.isArray(b) ? Number(b[0]) : Number(b?.lat);
+  const bLng = Array.isArray(b) ? Number(b[1]) : Number(b?.lng);
+
+  if (!isFinite(aLat) || !isFinite(aLng) || !isFinite(bLat) || !isFinite(bLng)) {
+    // 座標不正なら描画をスキップ
+    return;
+  }
 
   const span = Math.max(1, tB - tA); // 0割防止
   const segF = Math.max(0, Math.min(1, (t - tA) / span));
-  const p = L.latLng(
-    a.lat + (b.lat - a.lat) * segF,
-    a.lng + (b.lng - a.lng) * segF
-  );
+  const pLat = aLat + (bLat - aLat) * segF;
+  const pLng = aLng + (bLng - aLng) * segF;
+  const p = L.latLng(pLat, pLng);
 
   // ライン更新（見栄え：進捗は距離ベースでスムーズに伸ばす）
-  const upto = viewLatLngs.slice(0, idx+1);
-  upto.push(p);
+  const upto = viewLatLngs.slice(0, idx+1).map(pt =>
+    Array.isArray(pt) ? [pt[0], pt[1]] : [pt.lat, pt.lng]
+  );
+  upto.push([p.lat, p.lng]);
   viewProg.setLatLngs(upto);
   viewHead.setLatLng(p);
 
@@ -1009,8 +1022,6 @@ function updateViewAt(ms){
   if (seekEl) seekEl.value = String(Math.round(t));
   if (timeEl) timeEl.textContent = `${fmt((t/1000)||0)} / ${fmt((viewDurMs/1000)||0)}`;
 }
- 
-
   </script>
 </body>
 </html>
