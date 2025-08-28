@@ -481,6 +481,20 @@ fetch('japan_outer_hull.geojson')
     let meMarker = null;
     let meCircle = null;
     let didZoomToLocate = false; // 最初の測位で一度だけ最大ズーム
+    let _locRetryTimer = 0;
+
+    // 初回fixを最速で取るためのユーティリティ（成功/失敗で必ず解放）
+    function getOneFix(opts = {}) {
+      return new Promise((resolve, reject) => {
+        const options = { enableHighAccuracy: true, timeout: 12000, maximumAge: 15000, ...opts };
+        let cleared = false;
+        const id = navigator.geolocation.watchPosition(
+          pos => { if (!cleared){ cleared = true; navigator.geolocation.clearWatch(id); resolve(pos); } },
+          err => { if (!cleared){ cleared = true; navigator.geolocation.clearWatch(id); reject(err); } },
+          options
+        );
+      });
+    }
 
     btnLocate.addEventListener('click', ()=>{
       if (locWatchId == null) {
@@ -491,13 +505,20 @@ fetch('japan_outer_hull.geojson')
     });
 
     function startLocate(){
-        if (!navigator.geolocation) { alert('このブラウザは位置情報に対応していません'); return; }
-        btnLocate.classList.add('active');
-        didZoomToLocate = false; // ← 開始のたびにリセット
-        locWatchId = navigator.geolocation.watchPosition(onLocate, onLocateError, {
-            enableHighAccuracy: true, maximumAge: 0, timeout: 15000
-        });
+      if (!navigator.geolocation) { alert('このブラウザは位置情報に対応していません'); return; }
+      btnLocate.classList.add('active');
+      didZoomToLocate = false;
+
+      // ① 最初の1点を素早く取得（成功すれば onLocate が走る）
+      getOneFix().then(onLocate).catch(onLocateError);
+
+      // ② 継続ウォッチ（既存があれば解除してから）
+      if (locWatchId != null) navigator.geolocation.clearWatch(locWatchId);
+      locWatchId = navigator.geolocation.watchPosition(onLocate, onLocateError, {
+        enableHighAccuracy: true, maximumAge: 0, timeout: 15000
+      });
     }
+
     function stopLocate(){
       if (locWatchId != null) navigator.geolocation.clearWatch(locWatchId);
       locWatchId = null;
@@ -543,8 +564,27 @@ fetch('japan_outer_hull.geojson')
     }
     function onLocateError(err){
       console.warn('locate error:', err);
-      if (err.code === 1) alert('位置情報の許可が必要です（ブラウザ設定を確認してください）');
+      const msg = (err && (err.message || '')).toString();
+
+      // iOSの一時的な測位不能（kCLErrorLocationUnknown / code=2）は短いバックオフで再試行
+      if ((err && err.code === 2) || /kCLErrorLocationUnknown/i.test(msg)) {
+        clearTimeout(_locRetryTimer);
+        _locRetryTimer = setTimeout(()=>{
+          getOneFix().then(onLocate).catch(e=>console.warn('retry locate failed', e));
+        }, 1500);
+        return;
+      }
+
+      // ユーザーが拒否
+      if (err && err.code === 1) {
+        alert('位置情報の許可が必要です。\nPlease allow location permission in your browser.');
+        return;
+      }
+
+      // タイムアウト等その他
+      alert('位置が取得できませんでした。数秒待って再度試して\nLocation unavailable. Please try again near a window.');
     }
+
 
     // ---------------- ここから：保存＆公開一覧の読み込み ----------------
 
