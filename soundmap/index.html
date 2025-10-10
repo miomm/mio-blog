@@ -94,6 +94,12 @@
     .track-item .controls button{ padding:4px 8px; border:1px solid var(--border); background:#fff; border-radius:6px; font-size:12px; cursor:pointer; }
     .track-item .time{ font-size:12px; opacity:.8; min-width:120px; }
     .track-item input[type="range"]{ width:100%; }
+    /* 記録モード選択モーダル */
+    .modal{ position:fixed; inset:0; background:rgba(0,0,0,.4);
+      display:flex; align-items:center; justify-content:center; z-index:2000; }
+    .modal.hidden{ display:none; }
+    .modal-card{ background:#fff; border:1px solid var(--border); border-radius:12px;
+      padding:16px; box-shadow:0 6px 24px rgba(0,0,0,.12); width:min(420px,90vw); }
   </style>
 </head>
 <body>
@@ -128,6 +134,31 @@
           <div class="row" style="justify-content:flex-end;gap:8px">
             <button id="btnSave" disabled aria-label="Save">Save</button>
           </div>
+          <hr style="margin:8px 0;border:none;border-top:1px solid var(--border);" />
+          
+          <h3>音声</h3>
+          <div class="row" id="audioRow">
+            <button id="btnMicStart" class="primary" aria-label="Start voice recording" disabled>Mic Start</button>
+            <button id="btnMicStop"  aria-label="Stop voice recording" disabled>Mic Stop</button>
+            <span id="micStatus" class="time">--:--</span>
+          </div>
+          <!-- 記録モード選択モーダル -->
+          <div id="startChoice" class="modal hidden" role="dialog" aria-modal="true">
+            <div class="modal-card">
+              <h3 style="margin:0 0 8px;">記録モード</h3>
+              <p style="margin:0 0 12px;">開始方法を選んでください。</p>
+              <div class="row" style="justify-content:flex-end; gap:8px;">
+                <button id="chooseCancel" class="danger" aria-label="キャンセル">キャンセル</button>
+                <button id="chooseGeo" aria-label="移動のみ記録する">移動のみ</button>
+                <button id="chooseBoth" class="primary" aria-label="音と移動を記録する">音声と移動</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <audio id="recAudio" controls hidden></audio>
+          </div>
+
         </div>
 
         <!-- 現在地コントロール -->
@@ -233,6 +264,130 @@ fetch('japan_outer_hull.geojson')
     let recTimerId = 0;    // 経過表示タイマー
     let keepAliveId = 0;   // 静止中キープアライブ
 
+    // ---- 音声録音用 ----
+    let micStream = null;
+    let mediaRec = null;
+    let audioChunks = [];
+    let audioBlob = null;
+    let audioUrl = "";
+    let micTimerId = 0;
+    let micT0 = 0;
+
+    // ブラウザ毎に妥当な mimeType を探す
+    function pickAudioMime(){
+      const candidates = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4',                 // Safari系
+        'audio/ogg;codecs=opus',
+        'audio/ogg',
+        'audio/wav'
+      ];
+      for (const type of candidates){
+        if (MediaRecorder.isTypeSupported?.(type)) return type;
+      }
+      return ''; // からの場合はブラウザに委ねる
+    }
+
+    function fmtMic(sec){
+      sec = Math.max(0, Math.floor(sec));
+      const m = Math.floor(sec/60).toString().padStart(2,'0');
+      const s = (sec%60).toString().padStart(2,'0');
+      return `${m}:${s}`;
+    }
+    async function startMic(){
+      if (!navigator.mediaDevices?.getUserMedia){
+        alert('このブラウザはマイク録音に対応していません'); return;
+      }
+      // 既に動いていればいったんクリア
+      await stopMic(false);
+
+      // マイク権限＆ストリーム取得
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = pickAudioMime();
+      audioChunks = [];
+      audioBlob = null;
+      audioUrl && URL.revokeObjectURL(audioUrl); audioUrl = "";
+
+      mediaRec = new MediaRecorder(micStream, mimeType ? { mimeType } : undefined);
+      mediaRec.ondataavailable = e => { if (e.data && e.data.size) audioChunks.push(e.data); };
+      mediaRec.onstop = () => {
+        if (!audioChunks.length) return;
+        const type = mediaRec.mimeType || 'audio/webm';
+        audioBlob = new Blob(audioChunks, { type });
+        audioUrl = URL.createObjectURL(audioBlob);
+        const audioEl = document.getElementById('recAudio');
+        if (audioEl){
+          audioEl.src = audioUrl;
+          audioEl.hidden = false;
+        }
+      };
+
+      mediaRec.start(1000); // 1秒刻みで chunk を受け取る
+      micT0 = Date.now();
+      const micStatus = document.getElementById('micStatus');
+      if (micTimerId) clearInterval(micTimerId);
+      micTimerId = setInterval(()=>{
+        const sec = (Date.now() - micT0)/1000;
+        if (micStatus) micStatus.textContent = fmtMic(sec);
+      }, 250);
+
+      // UI
+      document.getElementById('btnMicStart')?.setAttribute('disabled','');
+      document.getElementById('btnMicStop')?.removeAttribute('disabled');
+    }
+
+    async function stopMic(showLength = true){
+      try{
+        if (mediaRec && mediaRec.state !== 'inactive'){
+          await new Promise(res=>{
+            mediaRec.addEventListener('stop', res, { once:true });
+            mediaRec.stop();
+          });
+        }
+      }catch(e){ console.warn(e); }
+      try{
+        micStream?.getTracks?.().forEach(tr=>tr.stop());
+      }catch(e){ /* ignore */ }
+      micStream = null; mediaRec = null;
+
+      if (micTimerId){ clearInterval(micTimerId); micTimerId = 0; }
+      const micStatus = document.getElementById('micStatus');
+      if (micStatus){
+        micStatus.textContent = showLength && micT0 ? fmtMic((Date.now()-micT0)/1000) : '--:--';
+      }
+      document.getElementById('btnMicStart')?.removeAttribute('disabled');
+      document.getElementById('btnMicStop')?.setAttribute('disabled','');
+    }
+    // ---- 記録モード選択ダイアログ ----
+    // 戻り値: 'both' | 'geo' | null（キャンセル）
+    function chooseStartMode(){
+      return new Promise((resolve)=>{
+        const modal = document.getElementById('startChoice');
+        const bBoth = document.getElementById('chooseBoth');
+        const bGeo  = document.getElementById('chooseGeo');
+        const bCancel = document.getElementById('chooseCancel');
+
+        function close(v){
+          modal.classList.add('hidden');
+          bBoth.removeEventListener('click', onBoth);
+          bGeo.removeEventListener('click', onGeo);
+          bCancel.removeEventListener('click', onCancel);
+          resolve(v);
+        }
+        function onBoth(){ close('both'); }
+        function onGeo(){  close('geo'); }
+        function onCancel(){ close(null); }
+
+        // 開く & ハンドラ登録
+        modal.classList.remove('hidden');
+        bBoth.addEventListener('click', onBoth);
+        bGeo .addEventListener('click', onGeo);
+        bCancel.addEventListener('click', onCancel);
+      });
+    }
+
+
     // 再生管理
     let playing = false;
     let playStartWall = 0; // 再生開始の壁時計（ms）
@@ -284,6 +439,11 @@ fetch('japan_outer_hull.geojson')
         pushSample(pos);
       }, err=>console.warn(err), {enableHighAccuracy:true, maximumAge:0, timeout:10000});
 
+      // ★ 記録モード選択（音+移動 or 移動のみ）
+      const mode = await chooseStartMode();
+      if (mode === null) return;               // キャンセル
+      const withAudio = (mode === 'both');     // true=音も記録
+
       // 継続測位
       watchId = navigator.geolocation.watchPosition(pos=>{
         pushSample(pos);
@@ -297,6 +457,20 @@ fetch('japan_outer_hull.geojson')
       btnSave.disabled = true;
       progress.value = 0;
       playLenEl.textContent = '--:-- / --:--';
+
+      // ★ ユーザーが「音も記録する」を選んだ場合だけマイク開始
+      if (withAudio) {
+        try {
+          await startMic();
+        } catch(e) {
+          console.warn('mic start failed', e);
+          // マイクNGでも位置記録は継続する
+        }
+      }
+
+      // Micボタンは記録中だけ触れるように
+      document.getElementById('btnMicStart')?.setAttribute('disabled','');
+      document.getElementById('btnMicStop') ?.removeAttribute('disabled');
     });
     // ---- 記録終了
     btnStop.addEventListener('click', ()=>{
@@ -330,6 +504,13 @@ fetch('japan_outer_hull.geojson')
 
       const b = L.latLngBounds(latlngs);
       map.fitBounds(b.pad(0.2));
+
+      // マイクも止める
+      stopMic();
+
+      // Micボタンは通常状態へ
+      document.getElementById('btnMicStart')?.removeAttribute('disabled');
+      document.getElementById('btnMicStop') ?.setAttribute('disabled','');
 
       btnPlay.disabled = false;
       btnPause.disabled = true;
@@ -640,6 +821,33 @@ fetch('japan_outer_hull.geojson')
       }
       const json = await res.json();
       alert("保存しました！ ID: " + json.id);
+
+      // ★ 音声が録れていれば、IDに紐づけてアップロード
+      try{
+        if (audioBlob){
+          const fd = new FormData();
+          // 任意：クライアント側で推奨ファイル名をつける
+          const ext = (audioBlob.type.includes('mp4') ? 'm4a'
+                    : audioBlob.type.includes('ogg') ? 'ogg'
+                    : audioBlob.type.includes('wav') ? 'wav' : 'webm');
+          fd.append('audio', audioBlob, `track-${json.id}.${ext}`);
+          // 任意：メタデータ（録音開始時刻など）を付与
+          fd.append('started_at', new Date(micT0||Date.now()).toISOString());
+          fd.append('track_id', json.id);
+
+          const ar = await fetch(`/api/private/tracks/audio`, {
+            method: 'POST',
+            body: fd
+          });
+          if (!ar.ok){
+            const e = await ar.text();
+            alert("音声アップロードに失敗: " + e);
+          }
+        }
+      }catch(e){
+        console.warn(e);
+      }
+
       await afterSaved(json.id); // ← 一覧＆公開レイヤをまとめて更新
     });
 
@@ -900,6 +1108,10 @@ fetch('japan_outer_hull.geojson')
 
     // 初期表示
     document.addEventListener("DOMContentLoaded", refreshAuthUI);
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById('btnMicStart')?.addEventListener('click', () => startMic());
+      document.getElementById('btnMicStop') ?.addEventListener('click', () => stopMic());
+    });
     async function prepareViewForRow(row){
       activeRowId = row.dataset.id;
       const isPub = row.dataset.public === "1";
