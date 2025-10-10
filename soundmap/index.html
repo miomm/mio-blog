@@ -313,7 +313,8 @@ fetch('japan_outer_hull.geojson')
         const audioEl = document.getElementById('recAudio');
         if (audioEl){
           audioEl.src = audioUrl;
-          audioEl.hidden = false;
+          audioEl.hidden = true;      // ← UIは出さず、進行バーで制御
+          audioEl.controls = false;
         }
       };
 
@@ -520,6 +521,13 @@ fetch('japan_outer_hull.geojson')
         btnPause.disabled = false;
         playStartWall = performance.now();
         playStartT = Number(progress.value);
+        // ★ 音声も同じ位置から再生
+        const audioEl = document.getElementById('recAudio');
+        if (audioEl && audioEl.src) {
+          if (audioEl.readyState >= 1) { audioEl.currentTime = playStartT/1000; }
+          else { audioEl.addEventListener('loadedmetadata', ()=>{ audioEl.currentTime = playStartT/1000; }, { once:true }); }
+          audioEl.play().catch(e=>console.warn('audio play failed', e));
+        }
         tick();
       }
     });
@@ -531,6 +539,8 @@ fetch('japan_outer_hull.geojson')
       btnPlay.disabled = false;
       btnPause.disabled = true;
       if (rafId) cancelAnimationFrame(rafId);
+      const audioEl = document.getElementById('recAudio');
+      if (audioEl) { try{ audioEl.pause(); }catch{} }
     });
 
     // ---- シーク（つまみ操作で移動）
@@ -539,6 +549,11 @@ fetch('japan_outer_hull.geojson')
       const t = Number(progress.value);
       renderAt(t);
       playLenEl.textContent = `${fmt(t/1000)} / ${fmt(durationMs/1000)}`;
+      const audioEl = document.getElementById('recAudio');
+      if (audioEl && audioEl.src) {
+        if (audioEl.readyState >= 1) audioEl.currentTime = t/1000;
+        else audioEl.addEventListener('loadedmetadata', ()=> audioEl.currentTime = t/1000, { once:true });
+      }
     });
 
     // ---- 毎フレーム進める
@@ -554,6 +569,8 @@ fetch('japan_outer_hull.geojson')
         playing = false;
         btnPlay.disabled = false;
         btnPause.disabled = true;
+        const audioEl = document.getElementById('recAudio');
+        if (audioEl && !audioEl.paused) { try{ audioEl.pause(); }catch{} }
         return;
       }
       renderAt(t);
