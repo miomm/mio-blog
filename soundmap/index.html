@@ -437,8 +437,19 @@ fetch('japan_outer_hull.geojson')
       // ★ 記録モード選択（音+移動 or 移動のみ）
       const mode = await chooseStartMode();
       if (mode === null) return;               // キャンセル
-      const withAudio = (mode === 'both');     // true=音も記録
-
+      let withAudio = (mode === 'both');
+      // 事前クォータ確認（残りが少なければ音声OFFで開始）
+      if (withAudio) {
+        try {
+          const u = await fetch('/api/private/tracks/usage').then(r=>r.json());
+          // 最低バッファ 512KB（任意に調整）
+          if ((u?.remaining_bytes ?? Infinity) <= 512 * 1024) {
+            alert('サーバ容量の上限に近いため移動のみで記録を開始します。Server near capacity - logging moves only.');
+            withAudio = false;
+          }
+        } catch(e) { console.warn('quota precheck failed', e); }
+      }
+      
       // 継続測位
       watchId = navigator.geolocation.watchPosition(pos=>{
         pushSample(pos);
@@ -851,10 +862,15 @@ fetch('japan_outer_hull.geojson')
             body: fd
           });
           if (!ar.ok){
-            const e = await ar.text();
-            alert("音声アップロードに失敗: " + e);
+            let payload = null;
+            try { payload = await ar.json(); } catch {}
+            if (ar.status === 403 && payload?.error === 'quota_exceeded'){
+              alert('容量上限のため、音声を保存できませんでした。Server storage quota exceeded - audio not saved.');
+            } else {
+              alert("音声アップロードに失敗: " + (payload?.error || await ar.text()));
+            }
           }
-        }
+       }
       }catch(e){
         console.warn(e);
       }
