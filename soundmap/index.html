@@ -1441,16 +1441,19 @@ function updateViewAt(ms){
   if (seekEl) seekEl.value = String(Math.round(t));
   if (timeEl) timeEl.textContent = `${fmt((t/1000)||0)} / ${fmt((viewDurMs/1000)||0)}`;
   
-  // ★ 音声のシークも同期（再生中は追従、停止中は位置合わせのみ）
+  // ★ 音声は「停止中/シーク中のみ」時間を合わせる（再生中は触らない）
   const audioEl = document.getElementById('recAudio');
-  if (audioEl instanceof HTMLAudioElement && audioEl.src) {
+  if (audioEl instanceof HTMLAudioElement && audioEl.src && !viewPlaying) {
     const sec = t / 1000;
     if (audioEl.readyState >= 1) {
       audioEl.currentTime = sec;
     } else {
-      audioEl.addEventListener('loadedmetadata', () => { audioEl.currentTime = sec; }, { once:true });
+      audioEl.addEventListener('loadedmetadata', () => {
+        audioEl.currentTime = sec;
+      }, { once: true });
     }
-    if (!viewPlaying) { try { audioEl.pause(); } catch {} }
+    // 停止中は位置だけ合わせる（pauseは今のままでOK）
+    try { audioEl.pause(); } catch {}
   }
 }
   </script>
