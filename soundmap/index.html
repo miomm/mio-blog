@@ -100,6 +100,9 @@
     .modal.hidden{ display:none; }
     .modal-card{ background:#fff; border:1px solid var(--border); border-radius:12px;
       padding:16px; box-shadow:0 6px 24px rgba(0,0,0,.12); width:min(420px,90vw); }
+    /* パネルのシークバーはUIから消す（内部では存続） */
+    #progress { display: none !important; }
+    
   </style>
 </head>
 <body>
@@ -510,6 +513,8 @@ fetch('japan_outer_hull.geojson')
 
       const b = L.latLngBounds(latlngs);
       map.fitBounds(b.pad(0.2));
+      //地図上シークを有効化
+      enableTrackMapSeek();
 
       // マイクも止める
       stopMic();
@@ -614,6 +619,118 @@ fetch('japan_outer_hull.geojson')
         headMarker.setLatLng(pts[pts.length-1]);
       }
     }
+  // ===== Map seek (クリック/ドラッグ/タッチで地図上シーク) =====
+  const _seek = { latlngs: [], px: [], cum: [], total: 0 };
+
+  function buildSeekCache(){
+    if (!fullLine || !track?.length) return;
+    _seek.latlngs = track.map(p => L.latLng(p.lat, p.lng));
+    _seek.px = _seek.latlngs.map(ll => map.latLngToLayerPoint(ll));
+    _seek.cum = [0];
+    let acc = 0;
+    for (let i=0;i<_seek.latlngs.length-1;i++){
+      acc += _seek.latlngs[i].distanceTo(_seek.latlngs[i+1]); // meters
+      _seek.cum.push(acc);
+    }
+    _seek.total = acc || 1;
+  }
+
+  function timeFromLatLng(ll){
+    if (!_seek.px.length || !durationMs) return null;
+    const p = map.latLngToLayerPoint(ll);
+    let bestI=0, bestT=0, bestD2=Infinity;
+    for (let i=0;i<_seek.px.length-1;i++){
+      const a=_seek.px[i], b=_seek.px[i+1];
+      const vx=b.x-a.x, vy=b.y-a.y;
+      const wx=p.x-a.x, wy=p.y-a.y;
+      const vv = vx*vx+vy*vy || 1;
+      let t = (vx*wx+vy*wy)/vv; t=Math.max(0,Math.min(1,t));
+      const projX=a.x+vx*t, projY=a.y+vy*t;
+      const dx=p.x-projX, dy=p.y-projY;
+      const d2=dx*dx+dy*dy;
+      if (d2 < bestD2){ bestD2=d2; bestI=i; bestT=t; }
+    }
+    const seg = _seek.latlngs[bestI].distanceTo(_seek.latlngs[bestI+1]);
+    const dist = _seek.cum[bestI] + seg*bestT;
+    const frac = dist / _seek.total;
+    return Math.round(frac * durationMs);
+  }
+
+  function enableTrackMapSeek(){
+    if (!fullLine) return;
+    buildSeekCache();
+    map.on('zoomend', buildSeekCache);
+
+    // クリックでジャンプ（PC）
+    fullLine.on('click', (e)=>{
+      const ms = timeFromLatLng(e.latlng);
+      if (ms==null) return;
+      playing = true;
+      btnPlay.disabled = true; btnPause.disabled = false;
+      playStartWall = performance.now(); playStartT = ms;
+
+      const a = document.getElementById('recAudio');
+      if (a && a.src){
+        if (a.readyState >= 1) a.currentTime = ms/1000;
+        else a.addEventListener('loadedmetadata', ()=> a.currentTime = ms/1000, {once:true});
+        a.play().catch(()=>{});
+      }
+      tick();
+    });
+
+    // ドラッグでプレビュー（PC）
+    const onMove = (ev)=>{
+      const ms = timeFromLatLng(ev.latlng);
+      if (ms==null) return;
+      if (rafId) cancelAnimationFrame(rafId);
+      playing = false; btnPlay.disabled=false; btnPause.disabled=true;
+      renderAt(ms);
+      progress.value = ms;
+      playLenEl.textContent = `${fmt(ms/1000)} / ${fmt(durationMs/1000)}`;
+      const a = document.getElementById('recAudio');
+      if (a && a.src){
+        if (a.readyState >= 1) a.currentTime = ms/1000;
+        else a.addEventListener('loadedmetadata', ()=> a.currentTime = ms/1000, {once:true});
+        a.pause?.();
+      }
+    };
+    const onUp = ()=>{
+      map.off('mousemove', onMove);
+      map.dragging.enable();
+    };
+    fullLine.on('mousedown', (e)=>{
+      map.dragging.disable();
+      onMove(e);
+      map.on('mousemove', onMove);
+      map.once('mouseup', onUp);
+    });
+
+    // --- タッチ（スマホ/タブレット） ---
+    const onTouchMove = (ev)=>{
+      // Leafletのlatlngが無い場合はタッチ座標から変換
+      let ll = ev.latlng;
+      if (!ll) {
+        const t = ev.originalEvent?.touches?.[0];
+        if (t) ll = map.mouseEventToLatLng(t);
+      }
+      if (!ll) return;
+      onMove({ latlng: ll });
+    };
+    const onTouchEnd = ()=>{
+      map.off('touchmove', onTouchMove);
+      map.dragging.enable();
+    };
+
+    fullLine.on('touchstart', (e)=>{
+      map.dragging.disable();
+      onTouchMove(e);
+      map.on('touchmove', onTouchMove, { passive: true });
+      map.once('touchend', onTouchEnd);
+    });
+  }
+  // ===== /Map seek =====
+
+
 
     // ---- 記録サンプル関連 ----
     let lastPushT = 0;
