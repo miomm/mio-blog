@@ -1318,7 +1318,7 @@ fetch('japan_outer_hull.geojson')
   if (a) {
     try { a.pause?.(); } catch {}
     if (isAuthed) {
-      a.src = `/api/private/tracks/audio?id=${activeRowId}`;
+      a.src = `${location.origin}/api/private/tracks/audio?id=${encodeURIComponent(activeRowId)}`;
       a.load(); // メタデータを読み込む
       } else {
         a.removeAttribute('src');
