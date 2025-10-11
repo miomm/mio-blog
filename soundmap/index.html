@@ -1312,6 +1312,19 @@ fetch('japan_outer_hull.geojson')
 
   // 0ms に反映
   updateViewAt(0);
+
+  // ★ 音声の読み込み（ログイン時のみ private API を使用）
+  const a = document.getElementById('recAudio');
+  if (a) {
+    try { a.pause?.(); } catch {}
+    if (isAuthed) {
+      a.src = `/api/private/tracks/audio?id=${activeRowId}`;
+      a.load(); // メタデータを読み込む
+      } else {
+        a.removeAttribute('src');
+        a.load();
+      }
+    }
 }
 
 async function fetchTrackData(id, isPublic){
@@ -1353,12 +1366,22 @@ function startViewPlayback(){
   const seekEl = row?.querySelector('input[type="range"][data-role="seek"]');
   viewStartT = seekEl ? Number(seekEl.value) : 0;
 
+  // ★ 音声も同じ位置から再生
+  const a = document.getElementById('recAudio');
+  if (a && a.src){
+    const startSec = (viewStartT || 0) / 1000;
+    if (a.readyState >= 1) a.currentTime = startSec;
+    else a.addEventListener('loadedmetadata', ()=>{ a.currentTime = startSec; a.play().catch(()=>{}); }, { once:true });
+    a.play().catch(()=>{});
+  }
   tickView();
 }
 
 function stopViewPlayback(resetToZero){
   if (viewRAF) cancelAnimationFrame(viewRAF);
   viewRAF = 0; viewPlaying = false;
+  const a = document.getElementById('recAudio');
+  try { a?.pause(); } catch {}
   if (resetToZero) updateViewAt(0);
 }
 
@@ -1417,6 +1440,18 @@ function updateViewAt(ms){
   const seekEl = row?.querySelector('input[type="range"][data-role="seek"]');
   if (seekEl) seekEl.value = String(Math.round(t));
   if (timeEl) timeEl.textContent = `${fmt((t/1000)||0)} / ${fmt((viewDurMs/1000)||0)}`;
+  
+  // ★ 音声のシークも同期（再生中は追従、停止中は位置合わせのみ）
+  const audioEl = document.getElementById('recAudio');
+  if (audioEl instanceof HTMLAudioElement && audioEl.src) {
+    const sec = t / 1000;
+    if (audioEl.readyState >= 1) {
+      audioEl.currentTime = sec;
+    } else {
+      audioEl.addEventListener('loadedmetadata', () => { audioEl.currentTime = sec; }, { once:true });
+    }
+    if (!viewPlaying) { try { audioEl.pause(); } catch {} }
+  }
 }
   </script>
 </body>
