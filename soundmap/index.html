@@ -183,9 +183,6 @@
     #trackCtrl #recLen,
     #trackCtrl #micStatus{ display:none !important; }
 
-    #trackCtrl hr,
-    #trackCtrl .divider{ display:none !important; }
-
     /* パネル下部の下線が border 系なら消す（保険） */
     #trackCtrl, #trackCtrl .row{
       border-bottom: none !important;
@@ -198,7 +195,39 @@
     /* パネル内の下線や区切りを消す */
     #trackCtrl hr, #trackCtrl .divider { display: none !important; }
 
+    /* パネル背景を“少し透明”＋軽いブラー */
+    .track-controls#trackCtrl{
+      background: rgba(255,255,255,0.85) !important; /* 透明感 */
+      backdrop-filter: blur(4px);                     /* うっすら */
+      -webkit-backdrop-filter: blur(4px);
+      max-width: 300px !important;                    /* さらに狭く */
+      padding: 10px 12px;
+    }
+
+    /* 統合コントローラ：ボタン2つを上段、時間は下段に */
+    #unifiedCtrl{
+      display: grid !important;
+      grid-template-columns: auto auto;  /* [REC] [Play] */
+      grid-row-gap: 6px;
+      align-items: center;
+    }
+
+    /* 時間は下段・横幅いっぱい（ボタンの“下”に表示） */
+    #unifiedCtrl #playLen{
+      grid-column: 1 / -1;   /* 1行下で2列ぶち抜き */
+      margin-left: 2px;      /* お好みで微調整 */
+      opacity: .9;
+    }
+
+    /* さらにコンパクトに（ボタン間のすき間など） */
+    #trackCtrl .row{ gap: 8px; }
+
+    /* パネル底の --:-- と下線は引き続き非表示（保険） */
+    #trackCtrl .time:not(#playLen){ display: none !important; }
+    #trackCtrl hr, #trackCtrl .divider{ display: none !important; }
+
   </style>
+
 </head>
 <body>
   <header><a href="/">yes, I'm dreaming.</a></header>
