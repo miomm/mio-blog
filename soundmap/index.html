@@ -225,15 +225,12 @@
       background: inherit;        /* パネル背景と馴染ませる */
       padding-bottom: 6px; margin-bottom: 6px;
     }
-
-    /* MyTracks のリストの一番下に見えない余白を足して、最後の要素も上まで持ってこれるようにする */
+    /* JSが設定する --bottom-pad を使って余白を作る */
     #myTracksList::after{
       content:"";
       display:block;
-      height: 50vh;   /* 30vh〜70vhくらいで調整 */
+      height: var(--bottom-pad, 50vh); /* JS設定が無ければ50vh */
     }
-
-
   </style>
 
 </head>
@@ -492,6 +489,22 @@ fetch('japan_outer_hull.geojson')
       const _old = window.afterSaved;
       window.afterSaved = async function(id){ try{ await _old(id); } finally{ setRecState('saved'); } };
     }
+    // リストの高さに応じて、下の余白を自動計算（=リストの高さぶん）
+    (function(){
+      const list = document.getElementById('myTracksList');
+      if (!list) return;
+
+      function updatePad(){
+        // 「リストの高さ」 ≒ 「最後の要素を上まで持ってくるのに必要な余白」
+        list.style.setProperty('--bottom-pad', list.clientHeight + 'px');
+      }
+      // 初期＆サイズ変化で更新
+      updatePad();
+      window.addEventListener('resize', updatePad);
+      // （任意）行数が動的に変わるなら、少し遅らせて再計算
+      let t; new MutationObserver(()=>{ clearTimeout(t); t=setTimeout(updatePad, 50); })
+        .observe(list, { childList:true, subtree:false });
+    })();
 
 
     // 記録データ：[{lat,lng,t(ms)}...]
