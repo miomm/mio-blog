@@ -159,43 +159,38 @@
     #playBtn.playing .ic-play{ display:none; }
     #playBtn.playing .ic-pause{ display:block; }
     #playBtn.playing .ic-pause rect{ fill:#fff; }
-    /* === 丸ボタンを“真円”にする（角丸→丸） === */
-    #unifiedCtrl .u-btn{
-      width:64px; height:64px;
+
+    /* --- 丸ボタンを厳密に真円に --- */
+    .u-btn,
+    #recBtn.u-btn,
+    #playBtn.u-btn{
+      width:64px !important;
+      height:64px !important;
+      aspect-ratio: 1 / 1;
       padding:0 !important;
-      border-radius:50% !important;     /* ← 真円に強制 */
-      aspect-ratio:1/1;                 /* 万一の崩れ対策 */
-      display:grid; place-items:center; /* 内側のSVGを中央に */
+      border-radius:50% !important;
+      overflow:hidden;
     }
 
-    /* SVGアイコンのサイズ（円内に収まるように） */
-    #unifiedCtrl .u-btn .ic{ width:28px; height:28px; }
-
-    /* 録音中のふんわり発光はそのまま（必要なければ削除可） */
-    #recBtn.recording::before{
-      content:""; position:absolute; inset:-8px; border-radius:50%;
-      pointer-events:none; background:radial-gradient(closest-side, rgba(255,59,48,.18), rgba(255,59,48,0));
-      filter:blur(8px); animation:recGlow 2.2s ease-in-out infinite;
-    }
-    @keyframes recGlow{ 0%{opacity:.3; transform:scale(.95);} 50%{opacity:.7; transform:scale(1.05);} 100%{opacity:.3; transform:scale(.95);} }
-
-    /* === 「移動ログ」パネルをスリムに（横幅短く） === */
-    /* パネル本体（idはファイル内の構造に合わせて） */
+    /* --- 「移動ログ」パネルをコンパクトに --- */
     #trackCtrl{
-      max-width: 360px;          /* ここで横幅上限を絞る */
-      width: fit-content;        /* 中身に合わせて縮む */
-      padding: 12px 14px;        /* 余白も少しタイトに */
+      width:fit-content;      /* 中身に合わせて最小化 */
+      max-width: 380px;       /* さらに狭くしたければ数値を下げてOK */
     }
+    #trackCtrl .row{ gap:10px; }
 
-    /* 行間も少し詰める */
-    #trackCtrl .row{ gap: 10px; }
+    /* --- 余計な時間表示＆下線を消す（再生時間 #playLen だけ残す） --- */
+    #trackCtrl #recLen,
+    #trackCtrl #micStatus{ display:none !important; }
 
-    /* タイトルもコンパクトに */
-    #trackCtrl h3{ margin: 6px 0 10px; }
+    #trackCtrl hr,
+    #trackCtrl .divider{ display:none !important; }
 
-    /* === パネル下部の「--:--」と下線を消す === */
-    #trackCtrl .time{ display:none !important; }   /* 例: --:-- の小さな時間表示を隠す */
-    #trackCtrl hr{ display:none !important; }      /* 下線を非表示 */
+    /* パネル下部の下線が border 系なら消す（保険） */
+    #trackCtrl, #trackCtrl .row{
+      border-bottom: none !important;
+      border-top: none !important;
+    }
 
   </style>
 </head>
