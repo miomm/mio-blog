@@ -216,15 +216,23 @@
       -webkit-overflow-scrolling: touch; /* スマホでの慣性スクロール */
     }
 
-    /* （任意）狭めにしたい場合：右パネル自体を少し細く */
-    #myTracksPanel{ max-width: 380px; }
+    /*右パネル自体を少し細く */
+    #myTracksPanel{ max-width: 95%; }
 
-    /* （任意）見出しをスクロール時も読みやすく固定したい場合 */
+    /* 見出しをスクロール時も読みやすく固定 */
     #myTracksPanel h2{
       position: sticky; top: 0;
       background: inherit;        /* パネル背景と馴染ませる */
       padding-bottom: 6px; margin-bottom: 6px;
     }
+
+    /* MyTracks のリストの一番下に見えない余白を足して、最後の要素も上まで持ってこれるようにする */
+    #myTracksList::after{
+      content:"";
+      display:block;
+      height: 50vh;   /* 30vh〜70vhくらいで調整 */
+    }
+
 
   </style>
 
