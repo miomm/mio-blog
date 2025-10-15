@@ -102,7 +102,64 @@
       padding:16px; box-shadow:0 6px 24px rgba(0,0,0,.12); width:min(420px,90vw); }
     /* パネルのシークバーはUIから消す（内部では存続） */
     #progress { display: none !important; }
-    
+    /* 旧ボタンはUIから隠す（内部ではclick代行で使用） */
+    #btnStart,#btnStop,#btnPlay,#btnPause,#btnSave{ display:none !important; }
+
+    /* 統一ボタンの見た目（ライト） */
+    .u-btn{
+      position:relative; display:grid; place-items:center;
+      width:64px; height:64px; border-radius:999px; cursor:pointer;
+      background:#fff; color:#111827; border:1px solid var(--border);
+      box-shadow:0 8px 18px rgba(0,0,0,.06), inset 0 0 0 2px rgba(0,0,0,.02);
+      transition:transform .08s ease, background .2s ease, box-shadow .2s ease, border-color .2s ease, opacity .2s ease;
+    }
+    .u-btn:hover{ box-shadow:0 12px 24px rgba(0,0,0,.08); }
+    .u-btn:active{ transform:translateY(1px); }
+    .u-btn:disabled{ opacity:.45; filter:grayscale(.2); cursor:not-allowed; }
+    .u-btn .ic{ width:28px; height:28px; display:none }
+
+    /* RECの各状態 */
+    #recBtn.idle .ic-record{ display:block; }
+    #recBtn .ic-record circle{ fill:#ff3b30; }
+
+    #recBtn.recording{ border-color:#fca5a5; }
+    #recBtn.recording .ic-stop{ display:block; }
+    #recBtn .ic-stop rect{ fill:#ff3b30; }
+    #recBtn.recording::before{
+      content:""; position:absolute; inset:-8px; border-radius:999px; pointer-events:none;
+      background:radial-gradient(closest-side, rgba(255,59,48,.18), rgba(255,59,48,0));
+      filter:blur(8px); animation:recGlow 2.2s ease-in-out infinite;
+    }
+    @keyframes recGlow{ 0%{opacity:.3; transform:scale(.95);} 50%{opacity:.7; transform:scale(1.05);} 100%{opacity:.3; transform:scale(.95);} }
+
+    #recBtn.ready{ border-color:#d1d5db; }
+    #recBtn.ready .ic-check-outline{ display:block; }
+    #recBtn .ic-check-outline path{
+      stroke:#9ca3af; stroke-width:4.5; stroke-linecap:round; stroke-linejoin:round; fill:none;
+    }
+
+    #recBtn.saving{ background:#f0fdf4; border-color:#bbf7d0; }
+    #recBtn .spinner{
+      width:18px; height:18px; border:3px solid rgba(0,0,0,.18); border-top-color:#111827;
+      border-radius:999px; animation:spin .9s linear infinite; display:none;
+    }
+    #recBtn.saving .spinner{ display:block; }
+    @keyframes spin{ to{ transform:rotate(360deg); } }
+
+    #recBtn.saved{ background:#17c964; border-color:transparent; color:#fff; }
+    #recBtn.saved .ic-check-solid{ display:block; }
+    #recBtn .ic-check-solid path{
+      stroke:#fff; stroke-width:5; stroke-linecap:round; stroke-linejoin:round; fill:none;
+    }
+
+    /* Play/Pauseの見た目 */
+    #playBtn .ic-play{ display:block; }
+    #playBtn .ic-play path{ fill:#111827; }
+    #playBtn.playing{ background:#111827; color:#fff; }
+    #playBtn.playing .ic-play{ display:none; }
+    #playBtn.playing .ic-pause{ display:block; }
+    #playBtn.playing .ic-pause rect{ fill:#fff; }
+
   </style>
 </head>
 <body>
@@ -121,6 +178,36 @@
         <!-- 位置記録・再生コントロール -->
         <div class="track-controls" id="trackCtrl">
           <h3>移動ログ</h3>
+          <!-- 統合コントローラ：REC & Play -->
+          <div class="row" id="unifiedCtrl" style="gap:12px; align-items:center">
+            <!-- REC三変化 -->
+            <button id="recBtn" class="u-btn idle" aria-label="Start recording" title="Start recording">
+              <!-- idle: 赤● -->
+              <svg class="ic ic-record" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="14"/></svg>
+              <!-- recording: 赤■ -->
+              <svg class="ic ic-stop" viewBox="0 0 48 48" aria-hidden="true"><rect x="14" y="14" width="20" height="20" rx="6"/></svg>
+              <!-- ready: 薄グレーのフチ✓ -->
+              <svg class="ic ic-check-outline" viewBox="0 0 48 48" aria-hidden="true"><path d="M12 25 l8 8 L36 16"/></svg>
+              <!-- saved flash: 緑✓ -->
+              <svg class="ic ic-check-solid" viewBox="0 0 48 48" aria-hidden="true"><path d="M12 25 l8 8 L36 16"/></svg>
+              <div class="spinner" aria-hidden="true"></div>
+            </button>
+
+            <!-- Play / Pause（停止直後＝readyで有効化、再生中はPause表示） -->
+            <button id="playBtn" class="u-btn" aria-label="Play" title="Play" disabled>
+              <!-- play -->
+              <svg class="ic ic-play" viewBox="0 0 48 48" aria-hidden="true"><path d="M18 14 L36 24 L18 34 Z"/></svg>
+              <!-- pause -->
+              <svg class="ic ic-pause" viewBox="0 0 48 48" aria-hidden="true">
+                <rect x="14" y="12" width="8" height="24" rx="2"/><rect x="26" y="12" width="8" height="24" rx="2"/>
+              </svg>
+            </button>
+
+            <!-- 既存の時間表示は流用 -->
+            <span class="time" id="recLen">--:--</span>
+            <span class="time" id="playLen">--:-- / --:--</span>
+          </div>
+
           <div class="row">
             <button id="btnStart" class="primary" aria-label="Start recording">Start</button>
             <button id="btnStop" disabled aria-label="Stop recording">Stop</button>
@@ -249,6 +336,72 @@ fetch('japan_outer_hull.geojson')
     const recLenEl = document.getElementById('recLen');
     const playLenEl= document.getElementById('playLen');
     const progress = document.getElementById('progress');
+
+    // --- 統合ボタンの状態管理 ---
+    const recBtn  = document.getElementById('recBtn');
+    const playBtn = document.getElementById('playBtn');
+    let recState = 'idle';     // 'idle' | 'recording' | 'ready' | 'saving' | 'saved'
+    function setRecState(s){
+      recState = s;
+      recBtn.classList.remove('idle','recording','ready','saving','saved');
+      recBtn.classList.add(s);
+      recBtn.setAttribute('aria-label',
+        s==='idle'?'Start recording' :
+        s==='recording'?'Stop recording' :
+        s==='ready'?'Save recording' :
+        s==='saving'?'Saving...' : 'Saved');
+      recBtn.title = recBtn.getAttribute('aria-label');
+
+      // 停止直後＝ready でプレビュー再生を解放
+      if (s === 'ready')  { playBtn.disabled = false; }
+      if (s === 'idle' || s === 'recording' || s === 'saving') { playBtn.disabled = true; setPlaying(false); }
+      if (s === 'saved')  { setTimeout(()=> setRecState('idle'), 900); } // 緑フラッシュ後に戻す
+    }
+
+    let isPlayingUI = false;
+    function setPlaying(p){
+      isPlayingUI = p;
+      if (p) {
+        playBtn.classList.add('playing');
+        playBtn.setAttribute('aria-label','Pause'); playBtn.title = 'Pause';
+      } else {
+        playBtn.classList.remove('playing');
+        playBtn.setAttribute('aria-label','Play'); playBtn.title = 'Play';
+      }
+    }
+
+    // クリック（見た目→既存ボタンに代行クリック）
+    recBtn?.addEventListener('click', ()=>{
+      if (recState === 'idle')      { btnStart.click(); setRecState('recording'); }
+      else if (recState === 'recording'){ btnStop.click();  setRecState('ready');     }
+      else if (recState === 'ready'){   // 保存
+        setRecState('saving');
+        // 保存完了で saved→idle へ（afterSavedをラップ）
+        const _after = window.afterSaved;
+        window.afterSaved = async function(id){
+          try { await _after(id); } finally { setRecState('saved'); }
+        };
+        btnSave.click();
+      }
+    });
+
+    playBtn?.addEventListener('click', ()=>{
+      if (playBtn.disabled) return;
+      if (!isPlayingUI) { btnPlay.click(); setPlaying(true); }
+      else { btnPause.click(); setPlaying(false); }
+    });
+
+    // 既存ボタンの結果でUIを同期（保険）
+    btnStart?.addEventListener('click', ()=> setRecState('recording'));
+    btnStop ?.addEventListener('click', ()=> setRecState('ready'));
+    btnPlay ?.addEventListener('click', ()=> setPlaying(true));
+    btnPause?.addEventListener('click', ()=> setPlaying(false));
+    // 保存完了時にもUIをidleへ戻す（二重呼び出しでも問題なし）
+    if (typeof window.afterSaved === 'function') {
+      const _old = window.afterSaved;
+      window.afterSaved = async function(id){ try{ await _old(id); } finally{ setRecState('saved'); } };
+    }
+
 
     // 記録データ：[{lat,lng,t(ms)}...]
     let watchId = null;
