@@ -159,6 +159,43 @@
     #playBtn.playing .ic-play{ display:none; }
     #playBtn.playing .ic-pause{ display:block; }
     #playBtn.playing .ic-pause rect{ fill:#fff; }
+    /* === 丸ボタンを“真円”にする（角丸→丸） === */
+    #unifiedCtrl .u-btn{
+      width:64px; height:64px;
+      padding:0 !important;
+      border-radius:50% !important;     /* ← 真円に強制 */
+      aspect-ratio:1/1;                 /* 万一の崩れ対策 */
+      display:grid; place-items:center; /* 内側のSVGを中央に */
+    }
+
+    /* SVGアイコンのサイズ（円内に収まるように） */
+    #unifiedCtrl .u-btn .ic{ width:28px; height:28px; }
+
+    /* 録音中のふんわり発光はそのまま（必要なければ削除可） */
+    #recBtn.recording::before{
+      content:""; position:absolute; inset:-8px; border-radius:50%;
+      pointer-events:none; background:radial-gradient(closest-side, rgba(255,59,48,.18), rgba(255,59,48,0));
+      filter:blur(8px); animation:recGlow 2.2s ease-in-out infinite;
+    }
+    @keyframes recGlow{ 0%{opacity:.3; transform:scale(.95);} 50%{opacity:.7; transform:scale(1.05);} 100%{opacity:.3; transform:scale(.95);} }
+
+    /* === 「移動ログ」パネルをスリムに（横幅短く） === */
+    /* パネル本体（idはファイル内の構造に合わせて） */
+    #trackCtrl{
+      max-width: 360px;          /* ここで横幅上限を絞る */
+      width: fit-content;        /* 中身に合わせて縮む */
+      padding: 12px 14px;        /* 余白も少しタイトに */
+    }
+
+    /* 行間も少し詰める */
+    #trackCtrl .row{ gap: 10px; }
+
+    /* タイトルもコンパクトに */
+    #trackCtrl h3{ margin: 6px 0 10px; }
+
+    /* === パネル下部の「--:--」と下線を消す === */
+    #trackCtrl .time{ display:none !important; }   /* 例: --:-- の小さな時間表示を隠す */
+    #trackCtrl hr{ display:none !important; }      /* 下線を非表示 */
 
   </style>
 </head>
