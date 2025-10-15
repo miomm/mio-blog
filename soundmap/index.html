@@ -1691,59 +1691,6 @@ function updateViewAt(ms){
     try { audioEl.pause(); } catch {}
   }
 }
-(() => {
-  const LIST_ID = 'myTracksList';
-  let scheduled = false;
-
-  function updateScrollRoom() {
-    scheduled = false;
-    const list = document.getElementById(LIST_ID);
-    if (!list) return;
-
-    // 現在の下パディングを除いた「実質的な表示高」を計算
-    const cs = getComputedStyle(list);
-    const pbNow = parseFloat(cs.paddingBottom) || 0;
-    const viewportH = list.clientHeight - pbNow;
-
-    const last = list.querySelector('.track-item:last-of-type');
-    const lastH = last ? last.getBoundingClientRect().height : 0;
-
-    // 余白 = 表示高 - 最後の要素の高さ（マイナスは 0 に切り上げ）
-    const pad = Math.max(0, Math.round(viewportH - lastH));
-    list.style.paddingBottom = pad + 'px';
-  }
-
-  function schedule() {
-    if (scheduled) return;
-    scheduled = true;
-    requestAnimationFrame(updateScrollRoom);
-  }
-
-  function init() {
-    const list = document.getElementById(LIST_ID);
-    if (!list) return;
-
-    // 子追加/削除や hidden 切替などのDOM変化で再計算
-    const mo = new MutationObserver(schedule);
-    mo.observe(list, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'style', 'class'] });
-
-    // リスト自体のサイズ変化（レイアウト/画面回転等）で再計算
-    const ro = new ResizeObserver(schedule);
-    ro.observe(list);
-
-    window.addEventListener('resize', schedule);
-    window.addEventListener('orientationchange', schedule);
-
-    // 初回 & フォント読み込み後にも実行（文字換算で高さが変わるため）
-    schedule();
-    if (document.fonts?.ready) document.fonts.ready.then(schedule).catch(()=>{});
-
-    // 明示的に呼びたい時用（任意）
-    window.updateTracksScrollRoom = schedule;
-  }
-
-  document.addEventListener('DOMContentLoaded', init);
-})();
   </script>
 </body>
 </html>
