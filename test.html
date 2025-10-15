@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>REC + Play Button (Light)</title>
+<style>
+  :root{
+    --bg:#fafafa; --panel:#ffffff; --border:#e5e7eb; --shadow:0 12px 28px rgba(0,0,0,.08);
+    --red:#ff3b30; --green:#17c964; --ink:#111827; --muted:#6b7280;
+  }
+  html,body{height:100%;margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;color:var(--ink)}
+  body{display:grid;place-items:center}
+
+  .card{
+    background:var(--panel);padding:28px;border-radius:16px;box-shadow:var(--shadow);
+    border:1px solid var(--border);display:flex;align-items:center;gap:16px;
+  }
+
+  /* === icon-only round buttons === */
+  .btn{
+    position:relative; display:grid; place-items:center;
+    width:88px; height:88px; border-radius:999px; cursor:pointer;
+    background:#fff; color:var(--ink);
+    border:1px solid var(--border);
+    box-shadow:0 8px 18px rgba(0,0,0,.06), inset 0 0 0 2px rgba(0,0,0,.02);
+    transition:transform .08s ease, background .2s ease, box-shadow .2s ease, opacity .2s ease, border-color .2s ease;
+  }
+  .btn:hover{ box-shadow:0 12px 24px rgba(0,0,0,.08); }
+  .btn:active{ transform:translateY(1px); }
+  .btn:disabled{ opacity:.45; filter:grayscale(.2); cursor:not-allowed; }
+
+  .ic{ width:34px; height:34px; display:none }
+
+  /* ===== REC（左） ===== */
+  #recBtn .ic-record circle{ fill:var(--red); }
+  #recBtn .ic-stop   rect   { fill:var(--red); rx:6; }
+  #recBtn .ic-check-outline path{
+    stroke:#9ca3af; stroke-width:4.5; stroke-linecap:round; stroke-linejoin:round; fill:none;
+  }
+  #recBtn .ic-check-solid path{
+    stroke:#fff; stroke-width:5; stroke-linecap:round; stroke-linejoin:round; fill:none;
+  }
+  /* 状態表示 */
+  #recBtn.idle       .ic-record{ display:block; }               /* 赤● */
+  #recBtn.recording  { background:#fff; border-color:#fca5a5; } /* 赤■＋ふんわり光 */
+  #recBtn.recording  .ic-stop{ display:block; }
+  #recBtn.recording::before{
+    content:""; position:absolute; inset:-10px; border-radius:999px; pointer-events:none;
+    background:radial-gradient(closest-side, rgba(255,59,48,.22), rgba(255,59,48,0));
+    filter:blur(10px); animation:recGlow 2.2s ease-in-out infinite;
+  }
+  @keyframes recGlow{
+    0%  { opacity:.35; transform:scale(.95); }
+    50% { opacity:.75; transform:scale(1.05); }
+    100%{ opacity:.35; transform:scale(.95); }
+  }
+  #recBtn.ready      { background:#fff; border-color:#d1d5db; }
+  #recBtn.ready      .ic-check-outline{ display:block; }        /* 保存待ち：薄グレー✓ */
+  #recBtn.saving     { background:#f0fdf4; border-color:#bbf7d0; }
+  #recBtn.saving     .spinner{ display:block; }
+  #recBtn.saved      { background:var(--green); border-color:transparent; color:#fff; }
+  #recBtn.saved      .ic-check-solid{ display:block; }
+  .spinner{
+    width:22px; height:22px; border:3px solid rgba(0,0,0,.18);
+    border-top-color:#111827; border-radius:999px; animation:spin .9s linear infinite; display:none;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  /* ===== Play（右） ===== */
+  /* play/pause 共通 */
+  #playBtn .ic-play path, #playBtn .ic-pause rect{
+    fill:#111827;
+  }
+  #playBtn.playing{ background:#111827; color:#fff; }
+  #playBtn.playing .ic-pause rect{ fill:#fff; }
+  #playBtn.playing .ic-play{ display:none; }
+  #playBtn.playing .ic-pause{ display:block; }
+
+  /* 初期は無効（保存完了まで） */
+  #playBtn:disabled{ opacity:.35; }
+
+  /* 表示切替 */
+  #playBtn .ic-play{ display:block; }
+  #playBtn .ic-pause{ display:none; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <!-- REC -->
+    <button id="recBtn" class="btn idle" aria-label="Start recording" title="Start recording">
+      <svg class="ic ic-record" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="14"/></svg>
+      <svg class="ic ic-stop"   viewBox="0 0 48 48" aria-hidden="true"><rect x="14" y="14" width="20" height="20"/></svg>
+      <svg class="ic ic-check-outline" viewBox="0 0 48 48" aria-hidden="true"><path d="M12 25 l8 8 L36 16"/></svg>
+      <svg class="ic ic-check-solid"   viewBox="0 0 48 48" aria-hidden="true"><path d="M12 25 l8 8 L36 16"/></svg>
+      <div class="spinner" aria-hidden="true"></div>
+    </button>
+
+    <!-- Play/Pause（保存完了まで disabled） -->
+    <button id="playBtn" class="btn" aria-label="Play" title="Play" disabled>
+      <!-- play icon -->
+      <svg class="ic ic-play" viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M18 14 L36 24 L18 34 Z"/>
+      </svg>
+      <!-- pause icon -->
+      <svg class="ic ic-pause" viewBox="0 0 48 48" aria-hidden="true">
+        <rect x="14" y="12" width="8" height="24" rx="2"/><rect x="26" y="12" width="8" height="24" rx="2"/>
+      </svg>
+    </button>
+  </div>
+
+<script>
+  // 状態: idle -> recording -> ready -> saving -> saved(0.9s) -> idle
+  let recState = 'idle';   // RECボタン用
+  let isPlaying = false;   // 再生状態（デモ用）
+  const recBtn  = document.getElementById('recBtn');
+  const playBtn = document.getElementById('playBtn');
+
+  function setRecState(s){
+    recState = s;
+    recBtn.classList.remove('idle','recording','ready','saving','saved');
+    recBtn.classList.add(s);
+    const label =
+      s==='idle'      ? 'Start recording' :
+      s==='recording' ? 'Stop recording'  :
+      s==='ready'     ? 'Save recording'  :
+      s==='saving'    ? 'Saving...'       : 'Saved';
+    recBtn.setAttribute('aria-label', label);
+    recBtn.title = label;
+
+    // ★ 停止後（ready）にプレビュー再生を解放。録音中/保存中は無効化。
+    if (s === 'ready')   playBtn.disabled = false;
+    if (s === 'recording' || s === 'saving' || s === 'idle') {
+      playBtn.disabled = true; setPlaying(false);
+    }
+
+    // 保存完了フラッシュ後は従来どおり idle へ（プレビューを残すならここで disable しない）
+    if (s === 'saved') {
+      setTimeout(()=> setRecState('idle'), 900);
+    }
+  }
+
+  function setPlaying(p){
+    isPlaying = p;
+    if (p) {
+      playBtn.classList.add('playing');
+      playBtn.setAttribute('aria-label','Pause'); playBtn.title = 'Pause';
+      // デモでは3秒だけ再生
+      clearTimeout(window._demoTimer);
+      window._demoTimer = setTimeout(()=> setPlaying(false), 3000);
+    } else {
+      playBtn.classList.remove('playing');
+      playBtn.setAttribute('aria-label','Play'); playBtn.title = 'Play';
+    }
+  }
+
+  // RECクリック
+  recBtn.addEventListener('click', ()=>{
+    if (recState==='idle') {              // Start
+      setRecState('recording');
+    } else if (recState==='recording') {  // Stop → 保存待ち
+      setRecState('ready');
+    } else if (recState==='ready') {      // Save
+      setRecState('saving');
+      setTimeout(()=> setRecState('saved'), 1200); // 疑似保存 → フラッシュ
+    }
+  });
+
+  // Playクリック（トグル）
+  playBtn.addEventListener('click', ()=>{
+    if (playBtn.disabled) return;
+    setPlaying(!isPlaying);
+  });
+
+  // キーボード操作（Space/Enter）
+  [recBtn, playBtn].forEach(b=>{
+    b.addEventListener('keydown', e=>{
+      if (e.key === ' ' || e.key === 'Enter'){ e.preventDefault(); b.click(); }
+    });
+  });
+
+  // 初期
+  setRecState('idle'); setPlaying(false);
+</script>
+
+</body>
+</html>
