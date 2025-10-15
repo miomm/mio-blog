@@ -41,7 +41,7 @@
     .track-controls{
       position:absolute; right:10px; top:10px; z-index:1000;
       background:#fff; border:1px solid var(--border); border-radius:10px;
-      padding:10px; box-shadow:0 2px 6px rgba(0,0,0,.06); font-size:12px; min-width:300px;
+      padding:10px; box-shadow:0 2px 6px rgba(0,0,0,.06); font-size:12px; min-width:200px;
     }
     .track-controls h3{margin:0 0 6px; font-size:12px;}
     .row{display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:4px 0;}
@@ -251,7 +251,7 @@
           <div class="row legacy" hidden>
             <button id="btnPlay" disabled aria-label="Play">Play</button>
             <button id="btnPause" disabled aria-label="Pause">Pause</button>
-            <span class="time" id="playLen">--:-- / --:--</span>
+            <!-- <span class="time" id="playLen">--:-- / --:--</span> -->
           </div>
           <div class="row legacy" hidden>
             <input id="progress" class="grow" type="range" min="0" max="1000" value="0" step="1" />
