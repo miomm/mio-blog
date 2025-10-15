@@ -16,6 +16,96 @@
   <!-- サイトのトーン（背景/文字色・フォント） -->
   <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
   <style>
+    /* ====== Base (light theme minimal) ====== */
+    :root{
+      --bg:#fafafa; --panel:#ffffff; --ink:#111827; --muted:#6b7280;
+      --border:#e5e7eb; --ok:#17c964; --danger:#ff3b30;
+      --btnSize:64px;
+    }
+    html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;}
+    /* パネル（移動ログ） */
+    #trackCtrl{
+      background:var(--panel);
+      border:1px solid var(--border);
+      border-radius:14px;
+      box-shadow:0 8px 18px rgba(0,0,0,.06);
+      padding:14px 16px;
+      width:fit-content;
+      max-width:360px;
+    }
+    #trackCtrl h3{margin:0 0 10px 0;font-size:15px;}
+    #trackCtrl .row{display:flex;align-items:center;gap:10px;}
+    #trackCtrl .time{font-variant-numeric:tabular-nums;color:var(--ink);opacity:.9}
+    #trackCtrl hr, #trackCtrl .divider{display:none !important;}
+
+    /* ====== 旧UI（DOMは残すが完全非表示） ====== */
+    #trackCtrl .legacy{display:none !important;}
+    /* 時間表示は #playLen だけ残す */
+    #trackCtrl .time{display:none !important;}
+    #trackCtrl #playLen{display:inline !important;}
+
+    /* ====== 丸ボタン（共通） ====== */
+    .u-btn{
+      position:relative; display:grid; place-items:center;
+      width:var(--btnSize); height:var(--btnSize); aspect-ratio:1/1;
+      border-radius:50%; padding:0; overflow:hidden; cursor:pointer;
+      background:#fff; color:#111827; border:1px solid var(--border);
+      box-shadow:0 8px 18px rgba(0,0,0,.06), inset 0 0 0 2px rgba(0,0,0,.02);
+      transition:transform .08s, background .2s, box-shadow .2s, border-color .2s, opacity .2s;
+    }
+    .u-btn:hover{box-shadow:0 12px 24px rgba(0,0,0,.08);}
+    .u-btn:active{transform:translateY(1px);}
+    .u-btn:disabled{opacity:.45;filter:grayscale(.2);cursor:not-allowed;}
+    .u-btn .ic{width:28px;height:28px;display:none}
+
+    /* ====== RECボタンの状態 ====== */
+    #recBtn.idle .ic-record{display:block;}
+    #recBtn .ic-record circle{fill:var(--danger);}
+
+    /* recording：赤■＋ふんわり光 */
+    #recBtn.recording{border-color:#fca5a5;}
+    #recBtn.recording .ic-stop{display:block;}
+    #recBtn .ic-stop rect{fill:var(--danger);}
+    #recBtn.recording::before{
+      content:""; position:absolute; inset:-8px; border-radius:50%; pointer-events:none;
+      background:radial-gradient(closest-side, rgba(255,59,48,.18), rgba(255,59,48,0));
+      filter:blur(8px); animation:recGlow 2.2s ease-in-out infinite;
+    }
+    @keyframes recGlow{0%{opacity:.3;transform:scale(.95)}50%{opacity:.7;transform:scale(1.05)}100%{opacity:.3;transform:scale(.95)}}
+
+    /* ready：薄いグレーのフチ✓（静止） */
+    #recBtn.ready .ic-check-outline{display:block;}
+    #recBtn .ic-check-outline path{
+      stroke:#9ca3af; stroke-width:4.5; stroke-linecap:round; stroke-linejoin:round; fill:none;
+    }
+
+    /* saving：スピナー表示 */
+    #recBtn.saving{background:#f0fdf4;border-color:#bbf7d0;}
+    #recBtn .spinner{
+      width:18px;height:18px;border:3px solid rgba(0,0,0,.18);border-top-color:#111827;
+      border-radius:50%;animation:spin .9s linear infinite;display:none;
+    }
+    #recBtn.saving .spinner{display:block;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* saved：緑✓を短時間フラッシュ */
+    #recBtn.saved{background:var(--ok); border-color:transparent; color:#fff;}
+    #recBtn.saved .ic-check-solid{display:block;}
+    #recBtn .ic-check-solid path{
+      stroke:#fff; stroke-width:5; stroke-linecap:round; stroke-linejoin:round; fill:none;
+    }
+
+    /* ====== Play/Pause ボタン ====== */
+    #playBtn .ic-play{display:block;}
+    #playBtn .ic-play path{fill:#111827;}
+    #playBtn.playing{background:#111827;color:#fff;}
+    #playBtn.playing .ic-play{display:none;}
+    #playBtn.playing .ic-pause{display:block;}
+    #playBtn.playing .ic-pause rect{fill:#fff;}
+  </style>
+
+  <!-- <style>
     :root{ --bg:#F1F1F1; --text:#5A5A5A; --border:#ddd; --accent:#007aff; }
     html,body{height:100%;}
     body{margin:0;background:var(--bg);color:var(--text);font-size:14px;}
@@ -191,8 +281,14 @@
       border-bottom: none !important;
       border-top: none !important;
     }
+    /* 「移動ログ」パネル内の時間表示は #playLen だけ残す */
+    #trackCtrl .time { display: none !important; }
+    #trackCtrl #playLen { display: inline !important; }
 
-  </style>
+    /* パネル内の下線や区切りを消す */
+    #trackCtrl hr, #trackCtrl .divider { display: none !important; }
+
+  </style> -->
 </head>
 <body>
   <header><a href="/">yes, I'm dreaming.</a></header>
@@ -209,7 +305,6 @@
       <section id="recPanel" hidden>
         <!-- 位置記録・再生コントロール -->
         <div class="track-controls" id="trackCtrl">
-          <h3>移動ログ</h3>
           <!-- 統合コントローラ：REC & Play -->
           <div class="row" id="unifiedCtrl" style="gap:12px; align-items:center">
             <!-- REC三変化 -->
@@ -234,30 +329,27 @@
                 <rect x="14" y="12" width="8" height="24" rx="2"/><rect x="26" y="12" width="8" height="24" rx="2"/>
               </svg>
             </button>
-
-            <!-- 既存の時間表示は流用 -->
-            <span class="time" id="recLen">--:--</span>
-            <span class="time" id="playLen">--:-- / --:--</span>
+            <!-- 時間表示はこれ1つだけ -->
+            <span class="time" id="playLen">--:--</span>
           </div>
-
-          <div class="row">
+          <!-- 旧UI（ロジック用にDOMだけ残す / 常時非表示） -->
+          <div class="row legacy" hidden>
             <button id="btnStart" class="primary" aria-label="Start recording">Start</button>
             <button id="btnStop" disabled aria-label="Stop recording">Stop</button>
             <span class="time" id="recLen">--:--</span>
           </div>
-          <div class="row">
+          <div class="row legacy" hidden>
             <button id="btnPlay" disabled aria-label="Play">Play</button>
             <button id="btnPause" disabled aria-label="Pause">Pause</button>
             <span class="time" id="playLen">--:-- / --:--</span>
           </div>
-          <div class="row">
+          <div class="row legacy" hidden>
             <input id="progress" class="grow" type="range" min="0" max="1000" value="0" step="1" />
           </div>
-          <div class="row" style="justify-content:flex-end;gap:8px">
+          <div class="row legacy" hidden style="justify-content:flex-end;gap:8px">
             <button id="btnSave" disabled aria-label="Save">Save</button>
           </div>
-          <hr style="margin:8px 0;border:none;border-top:1px solid var(--border);" />
-          
+          <hr class="legacy" hidden style="margin:8px 0;border:none;border-top:1px solid var(--border);" />
           <!-- 記録モード選択モーダル -->
           <div id="startChoice" class="modal hidden" role="dialog" aria-modal="true">
             <div class="modal-card">
@@ -384,11 +476,31 @@ fetch('japan_outer_hull.geojson')
         s==='saving'?'Saving...' : 'Saved');
       recBtn.title = recBtn.getAttribute('aria-label');
 
+      // 録音中は #playLen を録音経過表示に、録音が終わったらタイマー停止
+      if (s === 'recording') { startRecUITimer(); }
+      if (s === 'ready' || s === 'saving' || s === 'saved' || s === 'idle') { stopRecUITimer(); }
+
       // 停止直後＝ready でプレビュー再生を解放
       if (s === 'ready')  { playBtn.disabled = false; }
       if (s === 'idle' || s === 'recording' || s === 'saving') { playBtn.disabled = true; setPlaying(false); }
       if (s === 'saved')  { setTimeout(()=> setRecState('idle'), 900); } // 緑フラッシュ後に戻す
     }
+    let recUITimer = 0;
+    let recT0 = 0;
+    function startRecUITimer(){
+      recT0 = Date.now();
+      const el = document.getElementById('playLen');
+      if (recUITimer) clearInterval(recUITimer);
+      recUITimer = setInterval(()=>{
+        if (!el) return;
+        const sec = Math.max(0, Math.floor((Date.now()-recT0)/1000));
+        el.textContent = fmt(sec);   // ← 録音中は「mm:ss」だけ
+      }, 250);
+    }
+    function stopRecUITimer(){
+      if (recUITimer){ clearInterval(recUITimer); recUITimer = 0; }
+    }
+
 
     let isPlayingUI = false;
     function setPlaying(p){
