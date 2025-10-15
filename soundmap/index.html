@@ -194,6 +194,37 @@
 
     /* パネル内の下線や区切りを消す */
     #trackCtrl hr, #trackCtrl .divider { display: none !important; }
+    
+    /* ▼ MyTracks パネルだけ独立スクロールにする */
+    #myTracksPanel{
+      display:flex;               /* 既存 .panel の column と同じ方向 */
+      flex-direction:column;
+      /* 画面に収まる高さを上限に（ヘッダーや余白ぶん 100px はお好みで） */
+      max-height: calc(100vh - 100px);
+      overflow: hidden;           /* パネル自体は隠して… */
+    }
+
+    #myTracksPanel h2,
+    #myTracksPanel .tools{
+      flex: 0 0 auto;             /* 上部は固定 */
+    }
+
+    #myTracksList{
+      flex: 1 1 auto;             /* 残り全部をリストに割り当て */
+      min-height: 0;              /* 重要：flex 子要素のはみ出し防止 */
+      overflow-y: auto;           /* ← リストだけ縦スクロール */
+      -webkit-overflow-scrolling: touch; /* スマホでの慣性スクロール */
+    }
+
+    /* （任意）狭めにしたい場合：右パネル自体を少し細く */
+    #myTracksPanel{ max-width: 380px; }
+
+    /* （任意）見出しをスクロール時も読みやすく固定したい場合 */
+    #myTracksPanel h2{
+      position: sticky; top: 0;
+      background: inherit;        /* パネル背景と馴染ませる */
+      padding-bottom: 6px; margin-bottom: 6px;
+    }
 
   </style>
 
