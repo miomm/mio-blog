@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="音と移動の軌跡を記録するサウンドマップアプリケーション">
+  <title>Sound Map — miomiomi.org</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet-boundary-canvas@1.0.0/src/BoundaryCanvas.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #F1F1F1;
+      --text: #5A5A5A;
+      --border: #ddd;
+      --accent: #007aff;
+    }
+
+    html, body { height: 100%; margin: 0; }
+    body { background: var(--bg); color: var(--text); font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+    a { color: var(--text); text-decoration: none; border-bottom: 1px dotted #aaa; }
+    header { font-size: 16px; margin: 16px 10px; }
+    header a { border: 0; }
+
+    .wrap { display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px; padding: 0 2% 2%; }
+    
+    #map { width: 100%; height: 70vh; border: 1px solid var(--border); background: #fafafa; position: relative; }
+    .leaflet-marker-icon { filter: grayscale(100%); }
+    .leaflet-attribution-flag { display: none; }
+
+    .panel { border: 1px solid var(--border); background: #fff; padding: 12px; display: flex; flex-direction: column; gap: 10px; border-radius: 8px; }
+    .panel h2 { font-size: 14px; margin: 0 0 6px; font-weight: bold; color: var(--text); }
+
+    .track-controls { position: absolute; right: 10px; top: 10px; z-index: 1000; background: rgba(255, 255, 255, 0.8); border: 1px solid var(--border); border-radius: 10px; padding: 10px; box-shadow: 0 2px 6px rgba(0, 0, 0, .06); font-size: 12px; width: fit-content; }
+
+    .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .row button { padding: 6px 10px; border: 1px solid var(--border); background: #fff; border-radius: 6px; cursor: pointer; font-size: 12px; }
+    .row button.primary { border-color: var(--accent); color: #fff; background: var(--accent); }
+    .row button:disabled { opacity: .5; cursor: not-allowed; }
+    .row .time { font-variant-numeric: tabular-nums; }
+    .row input[type="range"] { width: 100%; }
+
+    .locate-box { position: absolute; right: 10px; bottom: 10px; z-index: 1000; background: rgba(255, 255, 255, 0.8); border: 1px solid var(--border); border-radius: 10px; padding: 8px; box-shadow: 0 2px 6px rgba(0, 0, 0, .06); font-size: 12px; display: flex; gap: 8px; align-items: center; }
+    .locate-box button { padding: 6px 10px; border: 1px solid var(--border); background: #fff; border-radius: 6px; cursor: pointer; }
+    .locate-box button.active { border-color: var(--accent); color: #fff; background: var(--accent); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; background: #007aff; border: 2px solid #fff; box-shadow: 0 0 0 2px #007aff; }
+
+    #loginPanel { position: absolute; right: 10px; top: 10px; z-index: 1001; }
+    #loginPanel button { font-size: 12px; padding: 4px 8px; border: 1px solid var(--border); background: #fff; border-radius: 6px; cursor: pointer; }
+
+    #myTracksPanel { max-height: calc(100vh - 100px); max-width: 95%; overflow: hidden; }
+    #myTracksPanel h2 { position: sticky; top: 0; background: #fff; padding-bottom: 6px; margin-bottom: 6px; flex: 0 0 auto; }
+    #myTracksPanel .tools { display: flex; gap: 8px; align-items: center; flex: 0 0 auto; }
+    #myTracksList { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+    .track-item { border: 1px solid var(--border); border-radius: 8px; padding: 8px; display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+    .track-title { font-weight: 600; }
+    .badge { font-size: 11px; padding: 2px 6px; border-radius: 999px; border: 1px solid var(--border); }
+    .badge.pub { background: #e8f4ff; border-color: #cde6ff; }
+    .badge.prv { background: #f6f6f6; }
+    .actions { display: flex; gap: 6px; }
+    .actions button { padding: 4px 8px; border: 1px solid var(--border); background: #fff; border-radius: 6px; cursor: pointer; font-size: 12px; }
+    .track-item .player { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--border); }
+    .track-item .controls { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .track-item .controls button { padding: 4px 8px; border: 1px solid var(--border); background: #fff; border-radius: 6px; font-size: 12px; cursor: pointer; }
+    .track-item .time { font-size: 12px; opacity: .8; min-width: 120px; }
+    .track-item input[type="range"] { width: 100%; }
+
+    .modal { position: fixed; inset: 0; background: rgba(0, 0, 0, .4); display: flex; align-items: center; justify-content: center; z-index: 2000; }
+    .modal.hidden { display: none; }
+    .modal-card { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 16px; box-shadow: 0 6px 24px rgba(0, 0, 0, .12); width: min(420px, 90vw); }
+
+    .u-btn { position: relative; display: grid; place-items: center; width: 64px; height: 64px; padding: 0; border-radius: 50%; cursor: pointer; background: #fff; color: #111827; border: 1px solid var(--border); box-shadow: 0 8px 18px rgba(0, 0, 0, .06), inset 0 0 0 2px rgba(0, 0, 0, .02); transition: transform .08s ease, background .2s ease, box-shadow .2s ease, border-color .2s ease, opacity .2s ease; overflow: hidden; }
+    .u-btn:hover { box-shadow: 0 12px 24px rgba(0, 0, 0, .08); }
+    .u-btn:active { transform: translateY(1px); }
+    .u-btn:disabled { opacity: .45; filter: grayscale(.2); cursor: not-allowed; }
+    .u-btn .ic { width: 28px; height: 28px; display: none; }
+
+    #recBtn.idle .ic-record { display: block; }
+    #recBtn .ic-record circle { fill: #ff3b30; }
+    #recBtn.recording { border-color: #fca5a5; }
+    #recBtn.recording .ic-stop { display: block; }
+    #recBtn .ic-stop rect { fill: #ff3b30; }
+    #recBtn.recording::before { content: ""; position: absolute; inset: -8px; border-radius: 999px; pointer-events: none; background: radial-gradient(closest-side, rgba(255, 59, 48, .18), rgba(255, 59, 48, 0)); filter: blur(8px); animation: recGlow 2.2s ease-in-out infinite; }
+    @keyframes recGlow { 0%, 100% { opacity: .3; transform: scale(.95); } 50% { opacity: .7; transform: scale(1.05); } }
+    #recBtn.ready { border-color: #d1d5db; }
+    #recBtn.ready .ic-check-outline { display: block; }
+    #recBtn .ic-check-outline path { stroke: #9ca3af; stroke-width: 4.5; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+    #recBtn.saving { background: #f0fdf4; border-color: #bbf7d0; }
+    #recBtn .spinner { width: 18px; height: 18px; border: 3px solid rgba(0, 0, 0, .18); border-top-color: #111827; border-radius: 999px; animation: spin .9s linear infinite; display: none; }
+    #recBtn.saving .spinner { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #recBtn.saved { background: #17c964; border-color: transparent; color: #fff; }
+    #recBtn.saved .ic-check-solid { display: block; }
+    #recBtn .ic-check-solid path { stroke: #fff; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+
+    #playBtn .ic-play { display: block; }
+    #playBtn .ic-play path { fill: #111827; }
+    #playBtn.playing { background: #111827; color: #fff; }
+    #playBtn.playing .ic-play { display: none; }
+    #playBtn.playing .ic-pause { display: block; }
+    #playBtn.playing .ic-pause rect { fill: #fff; }
+
+    @media (max-width: 900px) {
+      .wrap { grid-template-columns: 1fr; }
+      #map { height: 55vh; }
+    }
+  </style>
+</head>
+
+<body>
+  <header><a href="/">yes, I'm dreaming.</a></header>
+
+  <div class="wrap">
+    <div id="map" role="application" aria-label="録音と画像のサウンドマップ">
+      <section id="loginPanel" style="display:none">
+        <button id="btnAdminLogin" aria-label="管理者ログイン">Admin login</button>
+      </section>
+
+      <section id="recPanel" style="display:none">
+        <div class="track-controls" id="trackCtrl">
+          <div class="row" id="unifiedCtrl" style="gap:12px">
+            <button id="recBtn" class="u-btn idle" aria-label="録音開始" title="録音開始">
+              <svg class="ic ic-record" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="14"/></svg>
+              <svg class="ic ic-stop" viewBox="0 0 48 48" aria-hidden="true"><rect x="14" y="14" width="20" height="20" rx="6"/></svg>
+              <svg class="ic ic-check-outline" viewBox="0 0 48 48" aria-hidden="true"><path d="M12 25 l8 8 L36 16"/></svg>
+              <svg class="ic ic-check-solid" viewBox="0 0 48 48" aria-hidden="true"><path d="M12 25 l8 8 L36 16"/></svg>
+              <div class="spinner" aria-hidden="true"></div>
+            </button>
+            <button id="playBtn" class="u-btn" aria-label="再生" title="再生" disabled>
+              <svg class="ic ic-play" viewBox="0 0 48 48" aria-hidden="true"><path d="M18 14 L36 24 L18 34 Z"/></svg>
+              <svg class="ic ic-pause" viewBox="0 0 48 48" aria-hidden="true"><rect x="14" y="12" width="8" height="24" rx="2"/><rect x="26" y="12" width="8" height="24" rx="2"/></svg>
+            </button>
+            <span class="time" id="playLen">--:--</span>
+          </div>
+
+          <div style="display:none">
+            <button id="btnStart" class="primary">Start</button>
+            <button id="btnStop" disabled>Stop</button>
+            <span id="recLen">--:--</span>
+            <button id="btnPlay" disabled>Play</button>
+            <button id="btnPause" disabled>Pause</button>
+            <input id="progress" type="range" min="0" max="1000" value="0" step="1">
+            <button id="btnSave" disabled>Save</button>
+            <span id="micStatus">--:--</span>
+          </div>
+
+          <div id="startChoice" class="modal hidden" role="dialog" aria-modal="true">
+            <div class="modal-card">
+              <h3 style="margin:0 0 8px">記録モード</h3>
+              <p style="margin:0 0 12px">開始方法を選んでください。</p>
+              <div class="row" style="justify-content:flex-end;gap:8px">
+                <button id="chooseCancel">キャンセル</button>
+                <button id="chooseGeo">移動のみ</button>
+                <button id="chooseBoth" class="primary">音声と移動</button>
+              </div>
+            </div>
+          </div>
+          <audio id="recAudio" style="display:none"></audio>
+        </div>
+
+        <div class="locate-box">
+          <span class="legend-dot" aria-hidden="true"></span>
+          <button id="btnLocate" title="現在地の表示/非表示を切替">現在地</button>
+          <label style="display:flex;align-items:center;gap:4px;user-select:none">
+            <input type="checkbox" id="chkFollow" checked> フォロー
+          </label>
+        </div>
+      </section>
+    </div>
+
+    <aside class="panel" id="myTracksPanel" style="display:none">
+      <h2 id="myTracksTitle">Tracks</h2>
+      <div class="tools"><button id="btnRefreshTracks">Refresh</button></div>
+      <div id="myTracksList" aria-live="polite"></div>
+    </aside>
+  </div>
+
+  <script>
+    const map = L.map('map', { zoomControl: true, attributionControl: true });
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>',
+      maxZoom: 19
+    }).addTo(map);
+
+    const viewGroup = L.layerGroup().addTo(map);
+    let viewFull = null, viewProg = null, viewHead = null, activeRowId = null;
+    let viewPlaying = false, viewRAF = 0, viewStartWall = 0, viewStartT = 0, viewDurMs = 0;
+    let viewLatLngs = [], viewTimes = [], viewHasTimes = false, viewCum = [], viewTotal = 0;
+
+    function cleanupViewLayers() {
+      viewPlaying = false;
+      if (viewRAF) cancelAnimationFrame(viewRAF);
+      viewRAF = 0;
+      viewGroup.clearLayers();
+      viewFull = viewProg = viewHead = null;
+      viewLatLngs = viewTimes = viewCum = [];
+      viewTotal = viewDurMs = 0;
+      viewHasTimes = false;
+    }
+
+    let publicGroup = L.layerGroup().addTo(map);
+    let gsi = null;
+
+    fetch('japan_outer_hull.geojson')
+      .then(r => r.json())
+      .then(boundary => {
+        const buffered = turf.buffer(boundary, 23, { units: 'kilometers' });
+        map.fitBounds(L.geoJSON(buffered).getBounds());
+        gsi = new L.TileLayer.BoundaryCanvas('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
+          boundary: buffered, maxZoom: 18,
+          attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">地理院タイル</a>'
+        }).addTo(map);
+      });
+
+    const btnStart = document.getElementById('btnStart');
+    const btnStop = document.getElementById('btnStop');
+    const btnPlay = document.getElementById('btnPlay');
+    const btnPause = document.getElementById('btnPause');
+    const btnSave = document.getElementById('btnSave');
+    const recLenEl = document.getElementById('recLen');
+    const playLenEl = document.getElementById('playLen');
+    const progress = document.getElementById('progress');
+    const recBtn = document.getElementById('recBtn');
+    const playBtn = document.getElementById('playBtn');
+
+    let recState = 'idle', recUITimer = 0, recT0 = 0, isPlayingUI = false;
+
+    function setRecState(s) {
+      recState = s;
+      recBtn.className = 'u-btn ' + s;
+      recBtn.setAttribute('aria-label', s === 'idle' ? '録音開始' : s === 'recording' ? '録音停止' : s === 'ready' ? '記録を保存' : s === 'saving' ? '保存中...' : '保存完了');
+      recBtn.title = recBtn.getAttribute('aria-label');
+      if (s === 'recording') startRecUITimer();
+      if (s === 'ready' || s === 'saving' || s === 'saved' || s === 'idle') stopRecUITimer();
+      if (s === 'ready') playBtn.disabled = false;
+      if (s === 'idle' || s === 'recording' || s === 'saving') { playBtn.disabled = true; setPlaying(false); }
+      if (s === 'saved') setTimeout(() => setRecState('idle'), 900);
+    }
+
+    function startRecUITimer() {
+      recT0 = Date.now();
+      if (recUITimer) clearInterval(recUITimer);
+      recUITimer = setInterval(() => {
+        playLenEl.textContent = fmt(Math.floor((Date.now() - recT0) / 1000));
+      }, 250);
+    }
+
+    function stopRecUITimer() {
+      if (recUITimer) { clearInterval(recUITimer); recUITimer = 0; }
+    }
+
+    function setPlaying(p) {
+      isPlayingUI = p;
+      playBtn.classList.toggle('playing', p);
+      playBtn.setAttribute('aria-label', p ? '一時停止' : '再生');
+      playBtn.title = playBtn.getAttribute('aria-label');
+    }
+
+    recBtn?.addEventListener('click', () => {
+      if (recState === 'idle') { btnStart.click(); setRecState('recording'); }
+      else if (recState === 'recording') { btnStop.click(); setRecState('ready'); }
+      else if (recState === 'ready') {
+        setRecState('saving');
+        const _after = window.afterSaved;
+        window.afterSaved = async id => { try { await _after(id); } finally { setRecState('saved'); } };
+        btnSave.click();
+      }
+    });
+
+    playBtn?.addEventListener('click', () => {
+      if (playBtn.disabled) return;
+      if (!isPlayingUI) { btnPlay.click(); setPlaying(true); }
+      else { btnPause.click(); setPlaying(false); }
+    });
+
+    btnStart?.addEventListener('click', () => setRecState('recording'));
+    btnStop?.addEventListener('click', () => setRecState('ready'));
+    btnPlay?.addEventListener('click', () => setPlaying(true));
+    btnPause?.addEventListener('click', () => setPlaying(false));
+
+    let watchId = null, track = [], t0 = 0, durationMs = 0;
+    let fullLine = null, progLine = null, headMarker = null, recTimerId = 0, keepAliveId = 0;
+    let micStream = null, mediaRec = null, audioChunks = [], audioBlob = null, audioUrl = "", micTimerId = 0, micT0 = 0;
+
+    function pickAudioMime() {
+      const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus', 'audio/ogg', 'audio/wav'];
+      for (const type of candidates) if (MediaRecorder.isTypeSupported?.(type)) return type;
+      return '';
+    }
+
+    function fmtMic(sec) {
+      sec = Math.max(0, Math.floor(sec));
+      return `${Math.floor(sec / 60).toString().padStart(2, '0')}:${(sec % 60).toString().padStart(2, '0')}`;
+    }
+
+    async function startMic() {
+      if (!navigator.mediaDevices?.getUserMedia) { alert('このブラウザはマイク録音に対応していません'); return; }
+      await stopMic(false);
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = pickAudioMime();
+      audioChunks = [];
+      audioBlob = null;
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+      audioUrl = "";
+      mediaRec = new MediaRecorder(micStream, mimeType ? { mimeType } : undefined);
+      mediaRec.ondataavailable = e => { if (e.data?.size) audioChunks.push(e.data); };
+      mediaRec.onstop = () => {
+        if (!audioChunks.length) return;
+        audioBlob = new Blob(audioChunks, { type: mediaRec.mimeType || 'audio/webm' });
+        audioUrl = URL.createObjectURL(audioBlob);
+        const audioEl = document.getElementById('recAudio');
+        if (audioEl) { audioEl.src = audioUrl; audioEl.hidden = true; }
+      };
+      mediaRec.start(1000);
+      micT0 = Date.now();
+    }
+
+    async function stopMic(showLength = true) {
+      try {
+        if (mediaRec?.state !== 'inactive') {
+          await new Promise(res => { mediaRec.addEventListener('stop', res, { once: true }); mediaRec.stop(); });
+        }
+      } catch (e) { console.warn(e); }
+      try { micStream?.getTracks?.().forEach(tr => tr.stop()); } catch (e) { }
+      micStream = mediaRec = null;
+      if (micTimerId) { clearInterval(micTimerId); micTimerId = 0; }
+    }
+
+    function chooseStartMode() {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('startChoice');
+        const bBoth = document.getElementById('chooseBoth');
+        const bGeo = document.getElementById('chooseGeo');
+        const bCancel = document.getElementById('chooseCancel');
+        function close(v) {
+          modal.classList.add('hidden');
+          bBoth.removeEventListener('click', onBoth);
+          bGeo.removeEventListener('click', onGeo);
+          bCancel.removeEventListener('click', onCancel);
+          resolve(v);
+        }
+        function onBoth() { close('both'); }
+        function onGeo() { close('geo'); }
+        function onCancel() { close(null); }
+        modal.classList.remove('hidden');
+        bBoth.addEventListener('click', onBoth);
+        bGeo.addEventListener('click', onGeo);
+        bCancel.addEventListener('click', onCancel);
+      });
+    }
+
+    let playing = false, playStartWall = 0, playStartT = 0, rafId = 0;
+
+    btnStart.addEventListener('click', async () => {
+      const hasExisting = (track?.length > 0) || fullLine || progLine || headMarker;
+      if (hasExisting && !confirm("リセットしてやり直しますか？")) return;
+      if (watchId) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+      stopRecTimer();
+      stopKeepAlive();
+      playing = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      cleanupTrackLayers();
+      track = [];
+      durationMs = 0;
+      progress.value = 0;
+      progress.max = 1000;
+      recLenEl.textContent = playLenEl.textContent = '--:--';
+
+      if (!navigator.geolocation) { alert('このブラウザは位置情報に対応していません'); return; }
+
+      track = [];
+      lastPushT = 0;
+      lastLatLng = null;
+      t0 = Date.now();
+      recLenEl.textContent = '00:00';
+      durationMs = 0;
+      startRecTimer();
+      startKeepAlive();
+
+      navigator.geolocation.getCurrentPosition(pushSample, err => console.warn(err), { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+
+      const mode = await chooseStartMode();
+      if (!mode) return;
+      let withAudio = mode === 'both';
+      if (withAudio) {
+        try {
+          const u = await fetch('/api/private/tracks/usage').then(r => r.json());
+          if ((u?.remaining_bytes ?? Infinity) <= 512 * 1024) {
+            alert('サーバ容量の上限に近いため移動のみで記録を開始します。');
+            withAudio = false;
+          }
+        } catch (e) { console.warn('quota precheck failed', e); }
+      }
+
+      watchId = navigator.geolocation.watchPosition(pushSample, err => console.warn(err), { enableHighAccuracy: true, maximumAge: 0 });
+      btnStart.disabled = true;
+      btnStop.disabled = false;
+      btnPlay.disabled = btnPause.disabled = btnSave.disabled = true;
+      progress.value = 0;
+      playLenEl.textContent = '--:-- / --:--';
+      if (withAudio) try { await startMic(); } catch (e) { console.warn('mic start failed', e); }
+    });
+
+    btnStop.addEventListener('click', () => {
+      if (watchId) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+      stopRecTimer();
+      stopKeepAlive();
+      btnStart.disabled = false;
+      btnStop.disabled = true;
+
+      if (!track.length) { alert('位置データが取得できませんでした。'); return; }
+      if (track.length === 1) track.push({ lat: track[0].lat, lng: track[0].lng, t: Date.now() });
+
+      durationMs = track[track.length - 1].t - track[0].t;
+      progress.max = Math.max(1, durationMs);
+      progress.value = 0;
+      recLenEl.textContent = fmt(durationMs / 1000);
+      playLenEl.textContent = `00:00 / ${fmt(durationMs / 1000)}`;
+
+      const latlngs = track.map(p => [p.lat, p.lng]);
+      fullLine = L.polyline(latlngs, { color: '#666', weight: 4, opacity: 0.5 }).addTo(map);
+      progLine = L.polyline([], { color: '#007aff', weight: 5, opacity: 1 }).addTo(map);
+      headMarker = L.circleMarker(latlngs[0], { radius: 6, color: '#007aff', fillColor: '#fff', fillOpacity: 1, weight: 3 }).addTo(map);
+      map.fitBounds(L.latLngBounds(latlngs).pad(0.2));
+      enableTrackMapSeek();
+      stopMic();
+      btnPlay.disabled = false;
+      btnPause.disabled = true;
+      btnSave.disabled = false;
+    });
+
+    btnPlay.addEventListener('click', () => {
+      if (track.length < 2 || playing) return;
+      playing = true;
+      btnPlay.disabled = true;
+      btnPause.disabled = false;
+      playStartWall = performance.now();
+      playStartT = Number(progress.value);
+      const audioEl = document.getElementById('recAudio');
+      if (audioEl?.src) {
+        if (audioEl.readyState >= 1) audioEl.currentTime = playStartT / 1000;
+        else audioEl.addEventListener('loadedmetadata', () => { audioEl.currentTime = playStartT / 1000; }, { once: true });
+        audioEl.play().catch(e => console.warn('audio play failed', e));
+      }
+      tick();
+    });
+
+    btnPause.addEventListener('click', () => {
+      if (!playing) return;
+      playing = false;
+      btnPlay.disabled = false;
+      btnPause.disabled = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      try { document.getElementById('recAudio')?.pause(); } catch { }
+    });
+
+    progress.addEventListener('input', () => {
+      if (track.length < 2) return;
+      const t = Number(progress.value);
+      renderAt(t);
+      playLenEl.textContent = `${fmt(t / 1000)} / ${fmt(durationMs / 1000)}`;
+      const audioEl = document.getElementById('recAudio');
+      if (audioEl?.src) {
+        if (audioEl.readyState >= 1) audioEl.currentTime = t / 1000;
+        else audioEl.addEventListener('loadedmetadata', () => audioEl.currentTime = t / 1000, { once: true });
+      }
+    });
+
+    function tick() {
+      if (!playing) return;
+      const elapsed = performance.now() - playStartWall;
+      let t = playStartT + elapsed;
+      if (t >= durationMs) {
+        t = durationMs;
+        renderAt(t);
+        progress.value = t;
+        playLenEl.textContent = `${fmt(t / 1000)} / ${fmt(durationMs / 1000)}`;
+        playing = false;
+        btnPlay.disabled = false;
+        btnPause.disabled = true;
+        try { document.getElementById('recAudio')?.pause(); } catch { }
+        return;
+      }
+      renderAt(t);
+      progress.value = t;
+      playLenEl.textContent = `${fmt(t / 1000)} / ${fmt(durationMs / 1000)}`;
+      rafId = requestAnimationFrame(tick);
+    }
+
+    function renderAt(t) {
+      if (!progLine || track.length < 2) return;
+      const pts = [];
+      for (let i = 0; i < track.length - 1; i++) {
+        const a = track[i], b = track[i + 1];
+        if (i === 0) pts.push([a.lat, a.lng]);
+        if (t >= b.t - track[0].t) { pts.push([b.lat, b.lng]); continue; }
+        if (t <= a.t - track[0].t) break;
+        const ta = a.t - track[0].t, tb = b.t - track[0].t;
+        const ratio = (t - ta) / (tb - ta);
+        pts.push([a.lat + (b.lat - a.lat) * ratio, a.lng + (b.lng - a.lng) * ratio]);
+        break;
+      }
+      progLine.setLatLngs(pts);
+      if (headMarker && pts.length) headMarker.setLatLng(pts[pts.length - 1]);
+    }
+
+    const _seek = { latlngs: [], px: [], cum: [], total: 0 };
+
+    function buildSeekCache() {
+      if (!fullLine || !track?.length) return;
+      _seek.latlngs = track.map(p => L.latLng(p.lat, p.lng));
+      _seek.px = _seek.latlngs.map(ll => map.latLngToLayerPoint(ll));
+      _seek.cum = [0];
+      let acc = 0;
+      for (let i = 0; i < _seek.latlngs.length - 1; i++) {
+        acc += _seek.latlngs[i].distanceTo(_seek.latlngs[i + 1]);
+        _seek.cum.push(acc);
+      }
+      _seek.total = acc || 1;
+    }
+
+    function timeFromLatLng(ll) {
+      if (!_seek.px.length || !durationMs) return null;
+      const p = map.latLngToLayerPoint(ll);
+      let bestI = 0, bestT = 0, bestD2 = Infinity;
+      for (let i = 0; i < _seek.px.length - 1; i++) {
+        const a = _seek.px[i], b = _seek.px[i + 1];
+        const vx = b.x - a.x, vy = b.y - a.y, wx = p.x - a.x, wy = p.y - a.y;
+        const vv = vx * vx + vy * vy || 1;
+        let t = Math.max(0, Math.min(1, (vx * wx + vy * wy) / vv));
+        const dx = p.x - (a.x + vx * t), dy = p.y - (a.y + vy * t);
+        const d2 = dx * dx + dy * dy;
+        if (d2 < bestD2) { bestD2 = d2; bestI = i; bestT = t; }
+      }
+      const dist = _seek.cum[bestI] + _seek.latlngs[bestI].distanceTo(_seek.latlngs[bestI + 1]) * bestT;
+      return Math.round((dist / _seek.total) * durationMs);
+    }
+
+    function enableTrackMapSeek() {
+      if (!fullLine) return;
+      buildSeekCache();
+      map.on('zoomend', buildSeekCache);
+      fullLine.on('click', e => {
+        const ms = timeFromLatLng(e.latlng);
+        if (ms == null) return;
+        playing = true;
+        btnPlay.disabled = true;
+        btnPause.disabled = false;
+        playStartWall = performance.now();
+        playStartT = ms;
+        const a = document.getElementById('recAudio');
+        if (a?.src) {
+          if (a.readyState >= 1) a.currentTime = ms / 1000;
+          else a.addEventListener('loadedmetadata', () => a.currentTime = ms / 1000, { once: true });
+          a.play().catch(() => { });
+        }
+        tick();
+      });
+      const onMove = ev => {
+        const ms = timeFromLatLng(ev.latlng);
+        if (ms == null) return;
+        if (rafId) cancelAnimationFrame(rafId);
+        playing = false;
+        btnPlay.disabled = false;
+        btnPause.disabled = true;
+        renderAt(ms);
+        progress.value = ms;
+        playLenEl.textContent = `${fmt(ms / 1000)} / ${fmt(durationMs / 1000)}`;
+        const a = document.getElementById('recAudio');
+        if (a?.src) {
+          if (a.readyState >= 1) a.currentTime = ms / 1000;
+          else a.addEventListener('loadedmetadata', () => a.currentTime = ms / 1000, { once: true });
+          a.pause?.();
+        }
+      };
+      const onUp = () => { map.off('mousemove', onMove); map.dragging.enable(); };
+      fullLine.on('mousedown', e => { map.dragging.disable(); onMove(e); map.on('mousemove', onMove); map.once('mouseup', onUp); });
+      const onTouchMove = ev => {
+        let ll = ev.latlng;
+        if (!ll) { const t = ev.originalEvent?.touches?.[0]; if (t) ll = map.mouseEventToLatLng(t); }
+        if (ll) onMove({ latlng: ll });
+      };
+      const onTouchEnd = () => { map.off('touchmove', onTouchMove); map.dragging.enable(); };
+      fullLine.on('touchstart', e => { map.dragging.disable(); onTouchMove(e); map.on('touchmove', onTouchMove, { passive: true }); map.once('touchend', onTouchEnd); });
+    }
+
+    let lastPushT = 0, lastLatLng = null;
+
+    function pushSample(pos) {
+      const t = Date.now(), dt = t - (lastPushT || t0);
+      const lat = pos.coords.latitude, lng = pos.coords.longitude, ll = L.latLng(lat, lng);
+      if (lastLatLng && dt < 1000 && map.distance(lastLatLng, ll) < 5) return;
+      track.push({ lat, lng, t });
+      lastPushT = t;
+      lastLatLng = ll;
+      recLenEl.textContent = fmt((t - t0) / 1000);
+    }
+
+    function startKeepAlive() {
+      if (keepAliveId) return;
+      keepAliveId = setInterval(() => {
+        if (!t0 || !lastLatLng) return;
+        const now = Date.now();
+        if (now - lastPushT >= 3000) {
+          track.push({ lat: lastLatLng.lat, lng: lastLatLng.lng, t: now });
+          lastPushT = now;
+          recLenEl.textContent = fmt((now - t0) / 1000);
+        }
+      }, 1000);
+    }
+
+    function stopKeepAlive() { if (keepAliveId) { clearInterval(keepAliveId); keepAliveId = 0; } }
+
+    function fmt(sec) {
+      sec = Math.max(0, Math.floor(sec));
+      return `${Math.floor(sec / 60).toString().padStart(2, '0')}:${(sec % 60).toString().padStart(2, '0')}`;
+    }
+
+    function cleanupTrackLayers() {
+      if (fullLine) { map.removeLayer(fullLine); fullLine = null; }
+      if (progLine) { map.removeLayer(progLine); progLine = null; }
+      if (headMarker) { map.removeLayer(headMarker); headMarker = null; }
+    }
+
+    function startRecTimer() {
+      if (recTimerId) return;
+      recTimerId = setInterval(() => { if (t0) recLenEl.textContent = fmt((Date.now() - t0) / 1000); }, 250);
+    }
+
+    function stopRecTimer() { if (recTimerId) { clearInterval(recTimerId); recTimerId = 0; } }
+
+    const btnLocate = document.getElementById('btnLocate');
+    const chkFollow = document.getElementById('chkFollow');
+    let locWatchId = null, meMarker = null, meCircle = null, didZoomToLocate = false, _locRetryTimer = 0;
+
+    function getOneFix(opts = {}) {
+      return new Promise((resolve, reject) => {
+        const options = { enableHighAccuracy: true, timeout: 12000, maximumAge: 15000, ...opts };
+        let cleared = false;
+        const id = navigator.geolocation.watchPosition(
+          pos => { if (!cleared) { cleared = true; navigator.geolocation.clearWatch(id); resolve(pos); } },
+          err => { if (!cleared) { cleared = true; navigator.geolocation.clearWatch(id); reject(err); } },
+          options
+        );
+      });
+    }
+
+    btnLocate.addEventListener('click', () => { if (locWatchId == null) startLocate(); else stopLocate(); });
+
+    function startLocate() {
+      if (!navigator.geolocation) { alert('このブラウザは位置情報に対応していません'); return; }
+      btnLocate.classList.add('active');
+      didZoomToLocate = false;
+      getOneFix().then(onLocate).catch(onLocateError);
+      if (locWatchId) navigator.geolocation.clearWatch(locWatchId);
+      locWatchId = navigator.geolocation.watchPosition(onLocate, onLocateError, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+    }
+
+    function stopLocate() {
+      if (locWatchId) { navigator.geolocation.clearWatch(locWatchId); locWatchId = null; }
+      btnLocate.classList.remove('active');
+      if (meMarker) { map.removeLayer(meMarker); meMarker = null; }
+      if (meCircle) { map.removeLayer(meCircle); meCircle = null; }
+    }
+
+    function onLocate(pos) {
+      const lat = pos.coords.latitude, lng = pos.coords.longitude;
+      const acc = Math.max(5, Math.min(200, pos.coords.accuracy || 50));
+      const ll = L.latLng(lat, lng);
+      if (!meMarker) meMarker = L.circleMarker(ll, { radius: 6, color: '#007aff', weight: 3, fillColor: '#fff', fillOpacity: 1 }).addTo(map);
+      else meMarker.setLatLng(ll);
+      if (!meCircle) meCircle = L.circle(ll, { radius: acc, color: '#007aff', weight: 1, opacity: 0.5, fillOpacity: 0.1 }).addTo(map);
+      else { meCircle.setLatLng(ll); meCircle.setRadius(acc); }
+      if (!didZoomToLocate) {
+        const zs = [18];
+        if (typeof map.getMaxZoom === 'function') zs.push(map.getMaxZoom());
+        if (osm?.options?.maxZoom != null) zs.push(osm.options.maxZoom);
+        if (gsi?.options?.maxZoom != null) zs.push(gsi.options.maxZoom);
+        map.setView(ll, Math.max(...zs), { animate: true });
+        didZoomToLocate = true;
+      }
+      if (chkFollow.checked) map.panTo(ll, { animate: true });
+    }
+
+    function onLocateError(err) {
+      console.warn('locate error:', err);
+      const msg = (err?.message || '').toString();
+      if ((err?.code === 2) || /kCLErrorLocationUnknown/i.test(msg)) {
+        clearTimeout(_locRetryTimer);
+        _locRetryTimer = setTimeout(() => getOneFix().then(onLocate).catch(e => console.warn('retry locate failed', e)), 1500);
+        return;
+      }
+      if (err?.code === 1) { alert('位置情報の許可が必要です。'); return; }
+      alert('位置が取得できませんでした。');
+    }
+
+    function buildGeoJSONFromTrack(track) {
+      return { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: track.map(p => [p.lng, p.lat, p.t]) } };
+    }
+
+    function calcDistanceM(geom) { try { return turf.length(geom, { units: "kilometers" }) * 1000; } catch { return 0; } }
+
+    btnSave.addEventListener('click', async () => {
+      if (!track.length) return;
+      btnSave.disabled = true;
+      const geom = buildGeoJSONFromTrack(track);
+      const payload = {
+        started_at: new Date(track[0].t).toISOString(),
+        ended_at: new Date(track[track.length - 1].t).toISOString(),
+        duration_sec: Math.round(durationMs / 1000),
+        distance_m: Math.round(calcDistanceM(geom)),
+        geom
+      };
+      const res = await fetch("/api/private/tracks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+      if (res.status === 403) alert("初回はログインが必要です。");
+      if (!res.ok) { alert("保存に失敗しました: " + await res.text()); btnSave.disabled = false; return; }
+      const json = await res.json();
+      alert("保存しました！ ID: " + json.id);
+      try {
+        if (audioBlob) {
+          const fd = new FormData();
+          const ext = audioBlob.type.includes('mp4') ? 'm4a' : audioBlob.type.includes('ogg') ? 'ogg' : audioBlob.type.includes('wav') ? 'wav' : 'webm';
+          fd.append('audio', audioBlob, `track-${json.id}.${ext}`);
+          fd.append('started_at', new Date(micT0 || Date.now()).toISOString());
+          fd.append('track_id', json.id);
+          const ar = await fetch(`/api/private/tracks/audio`, { method: 'POST', body: fd });
+          if (!ar.ok) {
+            let payload = null;
+            try { payload = await ar.json(); } catch { }
+            if (ar.status === 403 && payload?.error === 'quota_exceeded') alert('容量上限のため、音声を保存できませんでした。');
+            else alert("音声アップロードに失敗: " + (payload?.error || await ar.text()));
+          }
+        }
+      } catch (e) { console.warn(e); }
+      await afterSaved(json.id);
+    });
+
+    async function loadAndDrawPublicTracks() {
+      try {
+        publicGroup.clearLayers();
+        const { tracks } = await fetch("/api/public/tracks?limit=50", { cache: "no-store" }).then(r => r.json());
+        for (let i = 0; i < tracks.length; i++) await drawTrackLight(tracks[i].id, Math.max(0.25, 1 - i * 0.02));
+      } catch (e) { console.warn(e); }
+    }
+
+    async function drawTrackLight(id, alpha) {
+      try {
+        const r = await fetch(`/api/public/tracks/${id}`);
+        if (!r.ok) return;
+        const { geom } = await r.json();
+        L.polyline(geom.geometry.coordinates.map(c => [c[1], c[0]]), { color: `rgba(0,122,255,${alpha})`, weight: 3, opacity: 0.9 }).addTo(publicGroup);
+      } catch (e) { console.warn(e); }
+    }
+
+    loadAndDrawPublicTracks();
+    L.DomEvent.disableClickPropagation(document.getElementById('trackCtrl'));
+    L.DomEvent.disableClickPropagation(document.querySelector('.locate-box'));
+    L.DomEvent.disableClickPropagation(document.getElementById('loginPanel'));
+
+    let isAuthed = false;
+    const myPanel = document.getElementById("myTracksPanel");
+    const myList = document.getElementById("myTracksList");
+    const myTitle = document.getElementById("myTracksTitle");
+
+    document.addEventListener("click", ev => {
+      if (!ev.target.closest("#btnAdminLogin")) return;
+      location.href = "/api/private/login?return=" + encodeURIComponent(location.pathname + location.search);
+    });
+
+    async function refreshAuthUI() {
+      try {
+        const { authenticated } = await fetch("/api/auth/status", { cache: "no-store" }).then(r => r.json());
+        isAuthed = !!authenticated;
+        document.getElementById("recPanel").style.display = isAuthed ? '' : 'none';
+        document.getElementById("loginPanel").style.display = isAuthed ? 'none' : '';
+        myPanel.style.display = '';
+        myList.textContent = "Loading...";
+        myTitle.textContent = isAuthed ? "My Tracks" : "Tracks";
+        if (isAuthed) await loadMyTracks(); else await loadPublicTracksList();
+      } catch (e) {
+        console.warn("auth status check failed", e);
+        document.getElementById("recPanel").style.display = 'none';
+        document.getElementById("loginPanel").style.display = '';
+        myPanel.style.display = '';
+        myTitle.textContent = "Tracks";
+        await loadPublicTracksList();
+      }
+    }
+
+    async function loadPublicTracksList() {
+      if (!myList) return;
+      myList.textContent = "Loading...";
+      try {
+        const r = await fetch("/api/public/tracks?limit=50", { cache: "no-store" });
+        if (!r.ok) { myList.textContent = "Error"; return; }
+        const { tracks } = await r.json();
+        if (!tracks.length) { myList.textContent = "No tracks"; return; }
+        myList.textContent = "";
+        tracks.forEach(t => addTrackRow(t, { viewer: true }));
+      } catch (e) { console.warn(e); myList.textContent = "Error"; }
+    }
+
+    async function loadMyTracks() {
+      if (!myList) return;
+      myList.textContent = "Loading...";
+      try {
+        const r = await fetch("/api/private/tracks?limit=50", { cache: "no-store" });
+        if (!r.ok) { myList.textContent = "Error"; return; }
+        const { tracks } = await r.json();
+        if (!tracks.length) { myList.textContent = "No tracks"; return; }
+        myList.textContent = "";
+        tracks.forEach(addTrackRow);
+      } catch (e) { console.warn(e); myList.textContent = "Error"; }
+    }
+
+    function addTrackRow(t, opts = {}) {
+      const viewer = !!opts.viewer;
+      const row = document.createElement("div");
+      row.className = "track-item";
+      row.dataset.id = t.id;
+      if (t.bbox) row.dataset.bbox = JSON.stringify(t.bbox);
+      row.dataset.public = viewer ? "1" : (t.is_public ? "1" : "0");
+      row.dataset.duration = String(t.duration_sec || 0);
+      const title = t.started_at ? new Date(t.started_at).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : t.id;
+      row.innerHTML = `<div class="track-title">${title}</div><div style="justify-self:end"><span class="badge ${viewer || t.is_public ? 'pub' : 'prv'}">${viewer || t.is_public ? 'Public' : 'Private'}</span></div><div class="actions" style="grid-column:1/-1"><button data-act="zoom">Zoom</button>${viewer ? '' : (t.is_public ? '<button data-act="unpub">Unpublish</button>' : '<button data-act="pub">Publish</button>')}<button data-act="del" ${viewer ? 'style="display:none"' : ''}>Delete</button></div><div class="player" hidden><div class="controls"><button data-act="play">Play</button><button data-act="stop">Stop</button><span class="time" data-role="time">00:00 / 00:00</span></div><input type="range" min="0" max="1000" value="0" step="100" data-role="seek"></div>`;
+      myList.appendChild(row);
+    }
+
+    myList?.addEventListener("click", async ev => {
+      const btn = ev.target.closest("button");
+      if (!btn) return;
+      const row = btn.closest(".track-item");
+      const id = row?.dataset.id;
+      if (!id) return;
+      const act = btn.dataset.act;
+      if (act === "zoom") {
+        document.querySelectorAll(".track-item .player").forEach(el => { if (el !== row.querySelector(".player")) el.hidden = true; });
+        const player = row.querySelector(".player");
+        if (player) player.hidden = false;
+        const bbox = row.dataset.bbox ? JSON.parse(row.dataset.bbox) : null;
+        if (bbox?.length === 4) map.fitBounds(L.latLngBounds([[bbox[1], bbox[0]], [bbox[3], bbox[2]]]).pad(0.25));
+        await prepareViewForRow(row);
+        return;
+      }
+      if (act === "play") { if (row.dataset.id !== activeRowId) await prepareViewForRow(row); startViewPlayback(); return; }
+      if (act === "stop") { stopViewPlayback(true); return; }
+      if (!isAuthed) return;
+      if (act === "pub" || act === "unpub") {
+        const res = await fetch(`/api/private/tracks/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ is_public: act === "pub" ? 1 : 0 }) });
+        if (!res.ok) return alert("Failed to update");
+        await loadMyTracks();
+        await loadAndDrawPublicTracks();
+        return;
+      }
+      if (act === "del") {
+        if (!confirm("Delete this track?")) return;
+        const res = await fetch(`/api/private/tracks/${id}`, { method: "DELETE" });
+        if (!res.ok) return alert("Failed to delete");
+        await loadMyTracks();
+        await loadAndDrawPublicTracks();
+      }
+    });
+
+    myList?.addEventListener("input", ev => {
+      const rng = ev.target.closest('input[type="range"][data-role="seek"]');
+      if (!rng) return;
+      const row = rng.closest(".track-item");
+      if (!row || row.dataset.id !== activeRowId) return;
+      stopViewPlayback(false);
+      updateViewAt(Number(rng.value));
+    });
+
+    document.getElementById("btnRefreshTracks")?.addEventListener("click", () => { if (isAuthed) loadMyTracks(); else loadPublicTracksList(); });
+
+    async function afterSaved(id) {
+      await loadAndDrawPublicTracks();
+      if (isAuthed) await loadMyTracks();
+    }
+
+    document.addEventListener("DOMContentLoaded", refreshAuthUI);
+
+    async function prepareViewForRow(row) {
+      activeRowId = row.dataset.id;
+      const isPub = row.dataset.public === "1";
+      const { latlngs, timesMs, durationMs } = await fetchTrackData(activeRowId, isPub);
+      if (!latlngs?.length) { alert("Failed to load track."); return; }
+      viewHasTimes = Array.isArray(timesMs) && timesMs.length === latlngs.length;
+      let times = [];
+      if (viewHasTimes) {
+        const raw = timesMs.map(v => typeof v === 'number' ? v : Date.parse(v));
+        const base = isFinite(raw[0]) ? raw[0] : 0;
+        times = raw.map(v => isFinite(v) ? v - base : 0);
+      } else {
+        const durMs = Math.max(1, (Number(row.dataset.duration || "0") * 1000) || (latlngs.length - 1) * 1000);
+        const cum = [0];
+        for (let i = 1; i < latlngs.length; i++) cum[i] = cum[i - 1] + map.distance(latlngs[i - 1], latlngs[i]);
+        const total = cum[cum.length - 1] || 1;
+        times = cum.map(x => Math.round(durMs * (x / total)));
+      }
+      const cum = [0];
+      for (let i = 1; i < latlngs.length; i++) cum[i] = cum[i - 1] + map.distance(latlngs[i - 1], latlngs[i]);
+      cleanupViewLayers();
+      viewLatLngs = latlngs;
+      viewTimes = times;
+      viewCum = cum;
+      viewTotal = cum[cum.length - 1];
+      viewDurMs = Math.max(1, times[times.length - 1] ?? durationMs ?? 1);
+      viewFull = L.polyline(viewLatLngs, { color: '#666', weight: 4, opacity: 0.5 }).addTo(viewGroup);
+      viewProg = L.polyline([], { color: '#007aff', weight: 5, opacity: 1 }).addTo(viewGroup);
+      viewHead = L.circleMarker(viewLatLngs[0], { radius: 6, color: '#007aff', fillColor: '#fff', fillOpacity: 1, weight: 3 }).addTo(viewGroup);
+      const timeEl = row.querySelector('.time[data-role="time"]');
+      const seekEl = row.querySelector('input[type="range"][data-role="seek"]');
+      if (seekEl) { seekEl.max = String(Math.max(1, viewDurMs)); seekEl.value = "0"; }
+      if (timeEl) timeEl.textContent = `00:00 / ${fmt(viewDurMs / 1000)}`;
+      updateViewAt(0);
+      const a = document.getElementById('recAudio');
+      if (a) {
+        try { a.pause?.(); } catch { }
+        if (isAuthed) { a.src = `${location.origin}/api/private/tracks/audio?id=${encodeURIComponent(activeRowId)}`; a.load(); }
+        else { a.removeAttribute('src'); a.load(); }
+      }
+    }
+
+    async function fetchTrackData(id, isPublic) {
+      const url = isPublic ? `/api/public/tracks/${id}` : `/api/private/tracks/${id}`;
+      const r = await fetch(url, { cache: 'no-store' });
+      if (!r.ok) return { latlngs: null, timesMs: null, durationMs: 0 };
+      const { geom } = await r.json();
+      const coords = geom?.geometry?.coordinates || [];
+      const latlngs = [], timesMs = [];
+      for (const c of coords) { latlngs.push([c[1], c[0]]); if (c.length >= 3) timesMs.push(c[2]); }
+      const props = geom?.properties || {};
+      if (!timesMs.length && Array.isArray(props.times)) timesMs.push(...props.times);
+      else if (!timesMs.length && Array.isArray(props.timestamps)) timesMs.push(...props.timestamps);
+      return { latlngs, timesMs, durationMs: Number.isFinite(props.duration_ms) ? props.duration_ms : 0 };
+    }
+
+    function startViewPlayback() {
+      if (!viewLatLngs?.length || viewLatLngs.length < 2 || viewPlaying) return;
+      viewPlaying = true;
+      viewStartWall = performance.now();
+      const row = document.querySelector(`.track-item[data-id="${activeRowId}"]`);
+      const seekEl = row?.querySelector('input[type="range"][data-role="seek"]');
+      viewStartT = seekEl ? Number(seekEl.value) : 0;
+      const a = document.getElementById('recAudio');
+      if (a?.src) {
+        const startSec = (viewStartT || 0) / 1000;
+        if (a.readyState >= 1) a.currentTime = startSec;
+        else a.addEventListener('loadedmetadata', () => { a.currentTime = startSec; a.play().catch(() => { }); }, { once: true });
+        a.play().catch(() => { });
+      }
+      tickView();
+    }
+
+    function stopViewPlayback(resetToZero) {
+      if (viewRAF) cancelAnimationFrame(viewRAF);
+      viewRAF = 0;
+      viewPlaying = false;
+      try { document.getElementById('recAudio')?.pause(); } catch { }
+      if (resetToZero) updateViewAt(0);
+    }
+
+    function tickView() {
+      if (!viewPlaying) return;
+      const t = viewStartT + (performance.now() - viewStartWall);
+      updateViewAt(t);
+      if (t >= viewDurMs) { stopViewPlayback(true); return; }
+      viewRAF = requestAnimationFrame(tickView);
+    }
+
+    function updateViewAt(ms) {
+      const t = Math.max(0, Math.min(viewDurMs, ms));
+      let idx = 0;
+      while (idx < viewTimes.length - 1 && viewTimes[idx + 1] < t) idx++;
+      const tA = viewTimes[idx], tB = viewTimes[Math.min(idx + 1, viewTimes.length - 1)];
+      const a = viewLatLngs[idx], b = viewLatLngs[Math.min(idx + 1, viewLatLngs.length - 1)];
+      const aLat = Array.isArray(a) ? Number(a[0]) : Number(a?.lat);
+      const aLng = Array.isArray(a) ? Number(a[1]) : Number(a?.lng);
+      const bLat = Array.isArray(b) ? Number(b[0]) : Number(b?.lat);
+      const bLng = Array.isArray(b) ? Number(b[1]) : Number(b?.lng);
+      if (!isFinite(aLat) || !isFinite(aLng) || !isFinite(bLat) || !isFinite(bLng)) return;
+      const segF = Math.max(0, Math.min(1, (t - tA) / Math.max(1, tB - tA)));
+      const p = L.latLng(aLat + (bLat - aLat) * segF, aLng + (bLng - aLng) * segF);
+      const upto = viewLatLngs.slice(0, idx + 1).map(pt => Array.isArray(pt) ? [pt[0], pt[1]] : [pt.lat, pt.lng]);
+      upto.push([p.lat, p.lng]);
+      viewProg.setLatLngs(upto);
+      viewHead.setLatLng(p);
+      const row = document.querySelector(`.track-item[data-id="${activeRowId}"]`);
+      const timeEl = row?.querySelector('.time[data-role="time"]');
+      const seekEl = row?.querySelector('input[type="range"][data-role="seek"]');
+      if (seekEl) seekEl.value = String(Math.round(t));
+      if (timeEl) timeEl.textContent = `${fmt((t / 1000) || 0)} / ${fmt((viewDurMs / 1000) || 0)}`;
+      const audioEl = document.getElementById('recAudio');
+      if (audioEl instanceof HTMLAudioElement && audioEl.src && !viewPlaying) {
+        const sec = t / 1000;
+        if (audioEl.readyState >= 1) audioEl.currentTime = sec;
+        else audioEl.addEventListener('loadedmetadata', () => { audioEl.currentTime = sec; }, { once: true });
+        try { audioEl.pause(); } catch { }
+      }
+    }
+  </script>
+</body>
+</html>
