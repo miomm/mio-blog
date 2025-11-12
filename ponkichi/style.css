@@ -1,0 +1,1290 @@
+* {
+    padding: 0;
+    margin: 0;
+}
+
+/*
+@font-face {
+    font-family: 'nav';
+    src: url(fonts/Corporate-Logo-Rounded.ttf);
+}
+*/
+
+wrapper {
+    width: 1913px;
+    height: auto;
+    overflow: hidden;
+}
+
+#top {
+    width: 100%;
+    background: #ffffff;
+    overflow: hidden;
+}
+
+/*ヘッダー*/
+.head {
+    width: 100%;
+    height: 50px;
+    background: #ffffff;
+}
+
+.head img {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+}
+
+/*ナビゲーション */
+nav {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 3;
+}
+
+nav li {
+    list-style-type: none;
+    float: left;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 600;
+}
+
+nav a {
+    font-size: 20px;
+    display: block;
+    text-decoration: none;
+    margin: 15px 25px 0px;
+    color: #333333;
+}
+
+nav a:hover {
+    color: #FF5F85;
+    transition: 0.5s;
+}
+
+/*top背景*/
+.main-visual {
+    position: relative;
+    width: 100%;
+    height: 750px;
+    background: #fff url(img/top_back.png);
+    background-size: cover;
+    overflow: hidden;
+}
+
+/*top画像*/
+.top-logo {
+    position: absolute;
+    bottom: 10%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.top-logo img {
+    width: 850px;
+}
+
+/*天使*/
+.engel {
+    position: absolute;
+    bottom: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.engel img {
+    width: 1300px;
+}
+
+/*ふわふわアニメーション*/
+.img_box {
+    animation: img_box_9955 3s ease-in-out infinite;
+    transform-origin: 50% 50%;
+    margin: 1rem 0 !important;
+}
+
+@keyframes img_box_9955 {
+    0% {
+        transform: translateY(0)
+    }
+
+    50% {
+        transform: translateY(-10px)
+    }
+
+    100% {
+        transform: translateY(0)
+    }
+}
+
+/*切り替え波*/
+
+#top .wave {
+    position: absolute;
+    bottom: -17%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/*Aboutエリア*/
+#about {
+    width: 100%;
+    height: 1450px;
+    background: #FFEC60;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+}
+
+/*雲*/
+.clowd-left {
+    position: absolute;
+    top: 0px;
+    left: -60px;
+    z-index: -1;
+}
+
+.clowd-right {
+    position: absolute;
+    bottom: 600px;
+    right: -60px;
+    z-index: -1;
+}
+
+.clowd-right img {
+    width: 300px;
+    ;
+}
+
+.about-content {
+    margin: 0 auto;
+    width: 800px;
+    text-align: center;
+}
+
+/*About*/
+.about-content h5 {
+    position: relative;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-size: 40px;
+    font-weight: 600;
+}
+
+/*見出し装飾*/
+.about-content h5:before {
+    position: absolute;
+    bottom: -10px;
+    left: calc(50% - 30px);
+    width: 60px;
+    height: 5px;
+    content: '';
+    border-radius: 3px;
+    background: #000;
+}
+
+/*プロフィールタイトル*/
+h1 {
+    position: relative;
+    text-align: center;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 800;
+    font-size: 30px;
+    padding: 5px;
+}
+
+/*プロフィール見出し装飾*/
+h1:before {
+    position: absolute;
+    bottom: -10px;
+    left: calc(50% - 30px);
+    width: 60px;
+    height: 5px;
+    content: '';
+    border-radius: 3px;
+    background: #000;
+}
+
+/*ぽんきちとは*/
+.aboutbox01 {
+
+    padding: 2em 4em;
+    margin: 5em 0;
+    font-weight: bold;
+    color: #000000;
+    /*文字色*/
+    background: #FFF;
+    border: solid 3px #000000;
+    /*線*/
+    border-radius: 20px;
+    /*角の丸み*/
+}
+
+.aboutbox01 h2 {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 600;
+    margin-bottom: 20px;
+    font-size: 30px;
+}
+
+.aboutbox01 p {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 300;
+    font-size: 23px;
+}
+
+/*画像*/
+.prof-img {
+    text-align: center;
+    margin-top: 50px;
+}
+
+.prof-img img {
+    width: 300px;
+}
+
+/*プロフィールボックス*/
+.aboutbox02 {
+    position: relative;
+    display: inline-block;
+    margin: 1em 0;
+    padding: 30px 60px;
+    color: #000;
+    font-size: 16px;
+    background: #FFF;
+    border: solid 3px #000;
+    box-sizing: border-box;
+    border-radius: 20px;
+}
+
+/*吹き出しの三角部分*/
+.aboutbox02:before {
+    content: "";
+    position: absolute;
+    top: -24px;
+    left: 50%;
+    margin-left: -15px;
+    border: 12px solid transparent;
+    border-bottom: 12px solid #FFF;
+    z-index: 2;
+}
+
+.aboutbox02:after {
+    content: "";
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    margin-left: -17px;
+    border: 14px solid transparent;
+    border-bottom: 14px solid #000;
+    z-index: 1;
+}
+
+/*プロフィール文章*/
+.aboutbox02 p {
+    text-align: center;
+    color: #000000;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 300;
+    font-size: 25px;
+}
+
+/*切り替え波*/
+#about .wave {
+    position: absolute;
+    bottom: -1%;
+    left: 55%;
+    transform: translateX(-50%);
+}
+
+/*voiceエリア*/
+#voice {
+    width: 100%;
+    height: 900px;
+    background: #fef7a7;
+    overflow: hidden;
+    position: relative;
+}
+
+/*おでんgif*/
+.oden {
+    position: absolute;
+    bottom: 0px;
+    left: -40px;
+    z-index: 1;
+}
+
+.oden img {
+    width: 300px;
+}
+
+/*宇宙飛行士*/
+.utyuu {
+    position: absolute;
+    top: 0px;
+    right: -40px;
+    z-index: 1;
+}
+
+.utyuu img {
+    width: 300px;
+}
+
+/*世の声ボックスエリア*/
+.voice-box {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0 auto;
+    margin-top: 80px;
+    width: 1000px;
+    position: relative;
+    justify-content: center;
+}
+
+/* Note styles */
+.note-pink,
+.note-blue {
+    /*  ふせんの大きさ  */
+    width: 240px;
+    min-height: 150px;
+    /*  内側の余白  */
+    padding: 25px;
+    padding-top: 40px;
+    margin: 0 33px 80px 2px;
+    position: relative;
+    /*  黒枠  */
+    border: solid 4px #000000;
+    font-size: 24px;
+    vertical-align: top;
+    display: inline-block;
+    font-family: Englebert, Arial;
+    color: #000;
+    background: #fff;
+    line-height: 34px;
+    text-align: center;
+    box-shadow: 0 4px 5px rgba(0, 0, 0, 0.2);
+}
+
+/*マステ部分*/
+.note-blue:before {
+    display: block;
+    content: "";
+    background: rgba(95, 228, 255, 0.8);
+    width: 130px;
+    height: 28px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+    border-radius: 6px/18px 0;
+    position: absolute;
+    top: -13px;
+    left: 75px;
+    /* マステの角度 */
+    transform: rotate(-3deg);
+}
+
+.note-pink:before {
+    display: block;
+    content: "";
+    background: rgba(255, 95, 133, 0.8);
+    width: 130px;
+    height: 28px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+    border-radius: 6px/18px 0;
+    position: absolute;
+    top: -13px;
+    left: 75px;
+    /* マステの角度 */
+    transform: rotate(3deg);
+}
+
+.note-text {
+    font-family: 'Yusei Magic', sans-serif;
+    font-size: 23px;
+}
+
+.note-text-last {
+    font-family: 'Yusei Magic', sans-serif;
+    font-size: 20px;
+}
+
+/*切り替え波*/
+#voice .wave {
+    position: absolute;
+    bottom: -30%;
+    left: 55%;
+    transform: translateX(-50%);
+}
+
+/*ゲームセクション*/
+#game {
+    width: 100%;
+    height: 1000px;
+    background: #fff;
+    position: relative;
+    overflow: hidden;
+}
+
+/*音量注意*/
+#game h2 {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    text-align: center;
+    padding-top: 40px;
+    font-size: 20px;
+}
+
+#game h3 {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    text-align: center;
+    font-size: 16px;
+    margin-top: 10px;
+    padding-bottom: 30px;
+}
+#game h5 {
+    display: none;
+}
+
+.game-area {
+    text-align: center;
+}
+
+/*切り替え波*/
+#game .wave {
+    position: absolute;
+    bottom: -5%;
+    left: 55%;
+    transform: translateX(-50%);
+}
+
+#goods {
+    width: 100%;
+    height: 2210px;
+    background: #FFEC60;
+    position: relative;
+    overflow: hidden;
+}
+
+/*グッズエリア*/
+.goods-area {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0 auto;
+    align-content: center;
+    width: 90%;
+    max-width: 1400spx;
+    justify-content: center;
+}
+
+/*pongif*/
+.ponpon {
+    position: absolute;
+    top: 1800px;
+    left: -40px;
+    z-index: 1;
+}
+
+.left {
+    width: 500px;
+    margin: 20px 20px 40px 20px;
+    height: 400px;
+
+}
+
+.right {
+    width: 500px;
+    margin: 20px;
+    height: 400px;
+}
+
+.gds-img img {
+    width: 500px;
+}
+
+#goods p {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-size: 30px;
+    text-align: center;
+    margin-top: 110px;
+}
+
+.left p {
+    margin-right: 60px;
+}
+
+.right p {
+    margin-left: 60px;
+
+}
+
+/*ボタン*/
+
+.btn,
+.btn:before,
+.btn:after {
+    -webkit-box-sizing: inherit;
+    box-sizing: inherit;
+}
+
+.btn-area {
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+    font-size: 62.5%;
+    text-align: center;
+    padding-top: 90px;
+}
+
+.btn,
+a.btn,
+button.btn {
+    /*  文字サイズ  */
+    font-size: 1.2rem;
+    /*  フォント  */
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 600;
+    line-height: 1.5;
+    position: relative;
+    display: inline-block;
+    padding: 1rem 4rem;
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-transition: all 0.3s;
+    transition: all 0.3s;
+    text-align: center;
+    vertical-align: middle;
+    text-decoration: none;
+    letter-spacing: 0.1em;
+    /*  文字色  */
+    color: #fff;
+    border-radius: 0.5rem;
+}
+
+a.btn-custom01 {
+    margin-bottom: 0.5rem;
+    padding: 0;
+    border-radius: 0.75rem;
+}
+
+a.btn-custom01:before {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+
+    width: 100%;
+    height: 96%;
+
+    content: "";
+    -webkit-transition: all 0.3s;
+    transition: all 0.3s;
+    -webkit-transform: translate3d(0, 0.75rem, -1rem);
+    transform: translate3d(0, 0.75rem, -1rem);
+
+    border: 2px solid #000;
+    border-radius: inherit;
+    /*  ボタン暗い色  */
+    background: #DC4D67;
+    -webkit-box-shadow: 0 0.6rem 0 0 rgba(0, 0, 0, 0.2);
+    /*  影beforeサイズ  */
+    box-shadow: 0 0.4rem 0 0 rgba(0, 0, 0, 0.2);
+}
+
+
+
+.btn-custom01-front {
+    position: relative;
+    display: block;
+    /*  ボタンサイズ調整  */
+    padding: 0.8rem 3rem 0.8rem 3rem;
+
+    -webkit-transition: all 0.3s;
+    transition: all 0.3s;
+    border: 2px solid #000;
+    border-radius: inherit;
+    /*  ボタンメインカラー  */
+    background: #FF5F85;
+}
+
+
+
+a.btn-custom01:hover {
+    -webkit-transform: translate(0, 0.25rem);
+    transform: translate(0, 0.25rem);
+}
+
+a.btn-custom01:hover:before {
+    -webkit-transform: translate3d(0, 0.5rem, -1rem);
+    transform: translate3d(0, 0.5rem, -1rem);
+    -webkit-box-shadow: 0 0.35rem 0 0 rgba(0, 0, 0, 0.2);
+    /*  影Afterサイズ  */
+    box-shadow: 0 0.2rem 0 0 rgba(0, 0, 0, 0.2);
+}
+
+/*ボタンエリア終わり*/
+/*切り替え波*/
+#goods .wave {
+    position: absolute;
+    bottom: -2%;
+    left: 30%;
+    transform: translateX(-40%);
+}
+
+/*ラインスタンプセクション*/
+#line {
+    width: 100%;
+    height: 800px;
+    background: #fff;
+    position: relative;
+    overflow: hidden;
+}
+
+#line h2 {
+    text-align: center;
+    padding: 30px;
+}
+
+h2 img {
+    width: 600px;
+}
+
+/*スリック*/
+.slick {
+    max-width: 900px;
+    margin: 60px auto;
+}
+
+h3 {
+    text-align: center;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-size: 30px;
+}
+
+/*ボタンエリア*/
+.linebtn,
+.linebtn:before,
+.linebtn:after {
+    -webkit-box-sizing: inherit;
+    box-sizing: inherit;
+}
+
+.btn-area02 {
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+    font-size: 62.5%;
+    text-align: center;
+    padding-top: 30px;
+}
+
+.linebtn,
+a.linebtn,
+button.linebtn {
+    /*  文字サイズ  */
+    font-size: 1.2rem;
+    /*  フォント  */
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 600;
+    line-height: 1.5;
+    position: relative;
+    display: inline-block;
+    padding: 1rem 4rem;
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-transition: all 0.3s;
+    transition: all 0.3s;
+    text-align: center;
+    vertical-align: middle;
+    text-decoration: none;
+    letter-spacing: 0.1em;
+    /*  文字色  */
+    color: #000;
+    border-radius: 0.5rem;
+}
+
+a.btn-custom02 {
+    margin-bottom: 0.5rem;
+    padding: 0;
+    border-radius: 0.75rem;
+}
+
+a.btn-custom02:before {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+
+    width: 100%;
+    height: 96%;
+
+    content: "";
+    -webkit-transition: all 0.3s;
+    transition: all 0.3s;
+    -webkit-transform: translate3d(0, 0.75rem, -1rem);
+    transform: translate3d(0, 0.75rem, -1rem);
+
+    border: 2px solid #000;
+    border-radius: inherit;
+    /*  ボタン暗い色  */
+    background: #C99F00;
+    -webkit-box-shadow: 0 0.6rem 0 0 rgba(0, 0, 0, 0.2);
+    /*  影beforeサイズ  */
+    box-shadow: 0 0.4rem 0 0 rgba(0, 0, 0, 0.2);
+}
+
+
+
+.btn-custom02-front {
+    position: relative;
+    display: block;
+    /*  ボタンサイズ調整  */
+    padding: 0.8rem 3rem 0.8rem 3rem;
+
+    -webkit-transition: all 0.3s;
+    transition: all 0.3s;
+    border: 2px solid #000;
+    border-radius: inherit;
+    /*  ボタンメインカラー  */
+    background: #FFEC60;
+}
+
+
+
+a.btn-custom02:hover {
+    -webkit-transform: translate(0, 0.25rem);
+    transform: translate(0, 0.25rem);
+}
+
+a.btn-custom02:hover:before {
+    -webkit-transform: translate3d(0, 0.5rem, -1rem);
+    transform: translate3d(0, 0.5rem, -1rem);
+    -webkit-box-shadow: 0 0.35rem 0 0 rgba(0, 0, 0, 0.2);
+    /*  影Afterサイズ  */
+    box-shadow: 0 0.2rem 0 0 rgba(0, 0, 0, 0.2);
+}
+#smh{
+    display: none;
+}
+/*ボタン終わり*/
+/*フッター*/
+footer {
+    background: #000;
+    width: 100%;
+    height: 480px;
+    
+    overflow: hidden;
+}
+
+footer h4 {
+    font-family: 'Yusei Magic', sans-serif;
+    font-size: 30px;
+    text-align: center;
+    color: #fff;
+    padding-top: 40px;
+}
+
+.share {
+    width: 600px;
+    margin: 0 auto;
+    padding-top: 80px;
+    display: flex;
+}
+
+.twitter {
+    margin: 0 auto;
+}
+
+.pon {
+    margin: 0 auto;
+}
+
+.fb {
+    margin: 0 auto;
+}
+
+footer h5 {
+    color: #fff;
+    text-align: center;
+    padding-top: 60px;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-size: 20px;
+
+}
+
+/*すまーとほん*/
+@media screen and (max-width: 479px) {
+    #top {
+        width: 100%;
+        background: #ffffff;
+        overflow: hidden;
+    }
+
+    /*ヘッダー*/
+    .head {
+        display: none;
+    }
+
+    #top {}
+
+    /*top背景*/
+    .main-visual {
+        height: 290px;
+    }
+
+    /*top画像*/
+    .top-logo {
+        bottom: -1%;
+    }
+
+    .top-logo img {
+        width: 350px;
+    }
+
+    /*天使*/
+    .engel {
+        position: absolute;
+        bottom: -5%;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .engel img {
+        width: 400px;
+    }
+
+    /*切り替え波*/
+    #top .wave {
+        position: absolute;
+        bottom: %;
+        left: 60%;
+        transform: translateX(-50%);
+    }
+
+    #top .wave img {
+        width: 550px;
+    }
+
+    /*Aboutエリア*/
+    #about {
+        height: 990px;
+    }
+
+    /*雲*/
+    .clowd-left {
+        left: -50px;
+    }
+
+    .clowd-left img {
+        width: 180px;
+    }
+
+    .clowd-right {
+        bottom: 500px;
+        right: -60px;
+        z-index: -1;
+    }
+
+    .clowd-right img {
+        width: 150px;
+        ;
+    }
+
+    .about-content {
+        width: 380px;
+    }
+
+    /*About*/
+    .about-content h5 {
+        font-size: 25px;
+        font-weight: 600;
+    }
+
+    /*見出し装飾*/
+    .about-content h5:before {
+        bottom: -8px;
+        height: 3px;
+    }
+
+    /*プロフィールタイトル*/
+    h1 {
+        font-size: 25px;
+        padding: 5px;
+    }
+
+    /*プロフィール見出し装飾*/
+    h1:before {
+        height: 4px;
+    }
+
+    /*ぽんきちとは*/
+    .aboutbox01 {
+        padding: 1.5em 1.5em;
+        margin: 2em 0;
+    }
+
+    .aboutbox01 h2 {
+        margin-bottom: 20px;
+        font-size: 25px;
+    }
+
+    .aboutbox01 p {
+        font-size: 15px;
+    }
+
+    /*画像*/
+    .prof-img {
+        margin-top: 30px;
+    }
+
+    .prof-img img {
+        width: 200px;
+    }
+
+    /*プロフィールボックス*/
+    .aboutbox02 {
+        margin: 1em 0;
+        padding: 20px 20px;
+        color: #000;
+        font-size: 12px;
+    }
+
+    /*プロフィール文章*/
+    .aboutbox02 p {
+        font-weight: 300;
+        font-size: 18px;
+    }
+
+    /*切り替え波*/
+    #about .wave {
+        position: absolute;
+        bottom: -1%;
+        left: 55%;
+        transform: translateX(-50%);
+    }
+
+    #about .wave img {
+        width: 550px;
+    }
+    
+/*voiceエリア*/
+#voice {
+    height: 1800px;
+}
+
+/*おでんgif*/
+.oden {
+    bottom: 0px;
+    left: -40px;
+}
+
+.oden img {
+    width: 150px;
+}
+
+/*宇宙飛行士*/
+.utyuu {
+    position: absolute;
+    top: 0px;
+    right: -40px;
+    z-index: 1;
+}
+
+.utyuu img {
+    width: 180px;
+}
+
+/*世の声ボックスエリア*/
+.voice-box {
+    margin-top: 60px;
+    width: 300px;
+}
+
+/* Note styles */
+.note-pink,
+.note-blue {
+    /*  ふせんの大きさ  */
+    width: 240px;
+    min-height: 150px;
+    /*  内側の余白  */
+    padding: 25px;
+    padding-top: 40px;
+    margin: 0 0px 40px 2px;
+    position: relative;
+    /*  黒枠  */
+    font-size: 24px;
+    color: #000;
+    background: #fff;
+    line-height: 34px;
+    text-align: center;
+    box-shadow: 0 4px 5px rgba(0, 0, 0, 0.2);
+}
+
+/*マステ部分*/
+.note-blue:before {
+    display: block;
+    content: "";
+    background: rgba(95, 228, 255, 0.8);
+    width: 130px;
+    height: 28px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+    border-radius: 6px/18px 0;
+    position: absolute;
+    top: -13px;
+    left: 75px;
+    /* マステの角度 */
+    transform: rotate(-3deg);
+}
+
+.note-pink:before {
+    display: block;
+    content: "";
+    background: rgba(255, 95, 133, 0.8);
+    width: 130px;
+    height: 28px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+    border-radius: 6px/18px 0;
+    position: absolute;
+    top: -13px;
+    left: 75px;
+    /* マステの角度 */
+    transform: rotate(3deg);
+}
+
+.note-text {
+    font-family: 'Yusei Magic', sans-serif;
+    font-size: 23px;
+}
+
+.note-text-last {
+    font-family: 'Yusei Magic', sans-serif;
+    font-size: 20px;
+}
+
+/*切り替え波*/
+#voice .wave {
+    position: absolute;
+    bottom: -7%;
+    left: 55%;
+    transform: translateX(-50%);
+}
+    #voice .wave img{
+        width: 700px;
+    }
+    
+/*ゲームセクション*/
+#game {
+    height: 470px;
+}
+
+/*音量注意*/
+#game h2 {
+    display: none;
+}
+
+#game h3 {
+    display: none;
+}
+#game h5{
+    display: block;
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    text-align: center;
+    font-size: 15px;
+    padding-top: 30px;
+}
+
+.game-area {
+    position: relative;
+    width: 100%;
+    height: 0;
+    padding-top: 100%
+/*
+    padding-top: 60px;
+    text-align: center;
+*/
+}
+    .game-area iframe{
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+/*切り替え波*/
+#game .wave {
+    position: absolute;
+    bottom: -5%;
+    left: 55%;
+    transform: translateX(-50%);
+}
+    #game .wave img{
+        width: 600px;
+    }
+
+#goods {
+    width: 100%;
+    height: 2300px;
+    background: #FFEC60;
+    position: relative;
+    overflow: hidden;
+}
+/*グッズエリア*/
+.goods-area {
+    max-width: 375px;
+}
+
+/*pongif*/
+.ponpon {
+    top: 2090px;
+    left: -40px;
+    z-index: 1;
+}
+    .ponpon img{
+        width: 200px;
+    }
+
+.left {
+    width: 400px;
+    margin: 20px 20px 20px 20px;
+    height: 100px;
+
+}
+
+.right {
+    width: 400px;
+    margin: 20px;
+    height: 100px;
+}
+
+.gds-img img {
+    width: 300px;
+    margin-left: 10px;
+}
+
+#goods p {
+    font-size: 20px;
+    text-align: left;
+    margin-top: 10px;
+    width: 300px;
+    margin-right: 0px;
+    margin-left: 0px;
+}
+
+.left p {
+    height: 30px;
+}
+
+
+.right p {
+    height: 30px;
+
+}
+    #g01{
+        order: 1;
+        padding-top: 50px;
+    }
+    #g02{
+        order: 2;
+        padding-top: 120px;
+    }
+    #g03{
+        order: 5;
+        padding-top: 160px;
+    }
+    #g04{
+        order: 4;
+        padding-top: 50px;
+    }
+    #g05{
+        order: 5;
+        padding-top: 80px;
+    }
+    #g06{
+        order: 6;
+        padding-top: 60px;
+    }
+    #g07{
+        order: 8;
+        padding-top: 130px;
+    }
+    #g08{
+        order: 7;
+        padding-top: 60px;
+    }
+    .btn-area{
+        padding-top: 140px;
+    }
+
+/*切り替え波*/
+#goods .wave {
+    bottom: -1%;
+}
+    #goods .wave img{
+        width: 600px;
+    }
+/*ラインスタンプセクション*/
+#line {
+    height: 450px;
+}
+
+#line h2 {
+    padding:20px;
+}
+
+h2 img {
+    width: 300px;
+}
+
+/*スリック*/
+.slick {
+    max-width: 400px;
+    margin: 20px auto;
+}
+
+h3 {
+    font-size: 20px;
+}
+    
+.btn-area02{
+        display: none;
+    }
+#smh{
+        display: block;
+    }
+    
+/*フッター*/
+footer {
+    height: 250px;
+}
+
+footer h4 {
+    font-size: 20px;
+    padding-top: 30px;
+}
+
+.share {
+    width: 350px;
+    padding-top: 30px;
+}
+
+.twitter img {
+    width: 100px;
+}
+
+.pon img {
+    width: 100px;;
+}
+
+.fb img {
+    width: 100px;
+}
+
+footer h5 {
+    padding-top: 10px;
+    font-size: 14px;
+
+}

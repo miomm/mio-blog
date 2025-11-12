@@ -1,0 +1,240 @@
+
+body, ul, li {
+  margin: 0;
+  padding: 0;
+}
+
+
+/*ーーーーーーーーーー
+.header
+ーーーーーーーーーーー*/
+#head_wrap {
+  top: -100px;
+  position: relative;
+  width: 100%;
+  margin: 100px auto 0;
+  line-height: 1;
+  z-index: 999;
+  height: 0px;
+  text-decoration: none;
+}
+
+#head_wrap a {
+  text-decoration: none;
+}
+
+#head_wrap .inner {
+  width: 100%;
+  margin: 0 auto;
+  position: relative;
+}
+
+#head_wrap .inner:after {
+  content: "";
+  clear: both;
+  display: block;
+}
+
+#head_wrap .logo {
+  float: left;
+  font-size: 36px;
+}
+
+#global-nav {
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+#global-nav ul {
+  list-style: none;
+  font-size: 14px;
+  margin-right: 10px;
+  display: inline-flex;
+}
+
+@media (max-width: 640px) {
+  #global-nav ul {
+    display: block;
+    margin-right: 0px;
+  }
+}
+
+#global-nav ul li {
+  padding: 20px 10px;
+}
+
+#global-nav ul li:last-child {
+  border-right: none;
+}
+
+@media (max-width: 640px) {
+  #global-nav ul li {
+    border-right: none;
+  }
+}
+
+#global-nav ul li a {
+  padding: 0 5px;
+  padding: 2px;
+  transition: all .6s ease 0s;
+  box-sizing: border-box;
+  font-weight: bold;
+}
+
+/* Fixed */
+#head_wrap.fixed {
+  margin-top: 0;
+  top: 0;
+  position: fixed;
+  height: 100px;
+  transition: top 0.65s ease-in;
+  -webkit-transition: top 0.65s ease-in;
+  -moz-transition: top 0.65s ease-in;
+  z-index: 9999;
+}
+
+#head_wrap.fixed .logo {
+  font-size: 36px;
+  color: #333;
+}
+
+#head_wrap.fixed #global-nav ul li a {
+  color: #333;
+  padding: 0 20px;
+}
+
+/* Toggle Button */
+#nav-toggle {
+  display: none;
+  position: absolute;
+  right: 12px;
+  top: 14px;
+  width: 34px;
+  height: 36px;
+  cursor: pointer;
+  z-index: 101;
+}
+
+#nav-toggle div {
+  position: relative;
+}
+
+@media (max-width: 640px) {
+  #head_wrap {
+    top: 0;
+    position: fixed;
+    margin-top: 0;
+    width: 100%;
+    padding: 0;
+    /* Fixed reset */
+  }
+  #head_wrap .inner {
+    width: 100%;
+    padding: 0;
+  }
+  #head_wrap .fixed {
+    padding-top: 0;
+    background: transparent;
+  }
+  #mobile-head {
+    background: rgba(255, 255, 255, 0.9);
+    width: 100%;
+    height: 56px;
+    z-index: 999;
+    position: relative;
+  }
+  #head_wrap.fixed .logo,
+  #head_wrap .logo {
+    position: absolute;
+    left: 13px;
+    top: 13px;
+    color: #333;
+    font-size: 26px;
+  }
+  #global-nav {
+    position: absolute;
+    /* 開いてないときは画面外に配置 */
+    top: -500px;
+    background: rgba(255, 255, 255, 0.9);
+    width: 100%;
+    text-align: center;
+    -webkit-transition: .5s ease-in-out;
+    -moz-transition: .5s ease-in-out;
+    transition: .5s ease-in-out;
+  }
+  #global-nav ul {
+    list-style: none;
+    position: static;
+    right: 0;
+    bottom: 0;
+    font-size: 14px;
+    margin-top: 20px;
+  }
+  #global-nav ul li {
+    float: none;
+    position: static;
+  }
+  #head_wrap #global-nav ul li a,
+  #head_wrap.fixed #global-nav ul li a {
+    width: 100%;
+    display: block;
+    padding: 5px 0;
+  }
+  #nav-toggle {
+    display: block;
+  }
+  /* #nav-toggle 切り替えアニメーション */
+  #nav-toggle span {
+    display: block;
+    position: absolute;
+    height: 4px;
+    width: 100%;
+    background: #666;
+    left: 0;
+    -webkit-transition: .35s ease-in-out;
+    -moz-transition: .35s ease-in-out;
+    transition: .35s ease-in-out;
+  }
+  #nav-toggle span:nth-child(1) {
+    top: 0;
+  }
+  #nav-toggle span:nth-child(2) {
+    top: 11px;
+  }
+  #nav-toggle span:nth-child(3) {
+    top: 22px;
+  }
+  .open #nav-toggle span:nth-child(1) {
+    top: 11px;
+    -webkit-transform: rotate(315deg);
+    -moz-transform: rotate(315deg);
+    transform: rotate(315deg);
+  }
+  .open #nav-toggle span:nth-child(2) {
+    width: 0;
+    left: 50%;
+  }
+  .open #nav-toggle span:nth-child(3) {
+    top: 11px;
+    -webkit-transform: rotate(-315deg);
+    -moz-transform: rotate(-315deg);
+    transform: rotate(-315deg);
+  }
+  /* #global-nav スライドアニメーション */
+  .open #global-nav {
+    /* #global-nav top + #mobile-head height */
+    -moz-transform: translateY(556px);
+    -webkit-transform: translateY(556px);
+    transform: translateY(556px);
+  }
+}
+
+#menu1, #menu2, #menu3, #menu4, #menu5 {
+  margin-top: 500px;
+  padding-top: 130px;
+}
+
+#menu5 {
+  padding-bottom: 100vh;
+}
