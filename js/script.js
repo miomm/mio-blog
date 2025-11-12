@@ -60,36 +60,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function openWhyHints() {
     setThird(`
       <p class="third-text">
-        このサイトのタイトルとして表示している "yes, I'm dreaming." には意味、由来があります。それは一体なんでしょう？<br>
-        There's a meaning and a story behind the title, "yes, I'm dreaming." . What is it?
+        https://miomi.org/
       </p>
-      <div class="hints">
-        ${[1,2,3,4,5,6,7].map(n => `
-          <button type="button" class="hint-toggle" data-target="hint${n}" aria-expanded="false">hint0${n}</button>
-          <div id="hint${n}" class="hint-body" hidden>${
-            ({
-              1:'私のことを深く知っている必要はない<br>You don’t need to know me well.',
-              2:'インターネットが関係している<br>It’s related to the internet.',
-              3:'このサイトの中を探す必要はない<br>No need to search within this site.',
-              4:'対になっている<br>It’s paired with something.',
-              5:'何かに対する応答である<br>It’s a response to something.',
-              6:'ドメインが関係している<br>The domain is involved.',
-              7:'私の名前はmioである<br>My name is mio.'
-            })[n]
-          }</div>
-        `).join('')}
-      </div>
     `);
-
-    thirdContent.querySelectorAll('.hint-toggle').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = btn.dataset.target;
-        const body = thirdContent.querySelector('#' + id);
-        const willOpen = body.hasAttribute('hidden');
-        body.toggleAttribute('hidden');
-        btn.setAttribute('aria-expanded', String(willOpen));
-      });
-    });
   }
 
   // ルーティング
